@@ -17,7 +17,7 @@ import type { Result } from '@/lib/actions';
 import type { Stage } from '@/lib/queries';
 import type { DealRow } from '@/lib/types';
 import { DealCard } from './ui';
-import { btn, input } from './forms';
+import { btn, btnQuiet, input } from './forms';
 
 type MoveFn = (id: string, stage: string, reason?: string, closeReason?: string) => Promise<Result>;
 
@@ -27,15 +27,17 @@ function Column({ stage, deals, children }: { stage: Stage; deals: DealRow[]; ch
     <div
       ref={setNodeRef}
       data-testid={`column-${stage.key}`}
-      className={`flex w-72 shrink-0 flex-col rounded-xl border p-2 transition ${
+      className={`flex w-[272px] shrink-0 flex-col rounded-[var(--radius)] border p-2 transition ${
         isOver
-          ? 'border-sky-400 bg-sky-50 dark:border-sky-600 dark:bg-sky-950/40'
-          : 'border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/50'
+          ? 'border-[var(--blue)] bg-[var(--blue-soft)]'
+          : 'border-[var(--line)] bg-[var(--paper-sunk)]'
       }`}
     >
-      <div className="flex items-baseline justify-between px-1 pb-2">
-        <h3 className="text-sm font-semibold">{stage.label}</h3>
-        <span className="text-xs text-neutral-500">
+      <div className="flex items-baseline justify-between gap-2 px-1.5 pb-2 pt-0.5">
+        <h3 className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[var(--ink-muted)]">
+          {stage.label}
+        </h3>
+        <span className="text-[11px] tabular-nums text-[var(--ink-faint)]">
           {deals.length}
           {stage.max_days ? ` · ${stage.max_days}d` : ''}
         </span>
@@ -106,12 +108,12 @@ export function Board({
       {blocked && (
         <div
           data-testid="board-blocked"
-          className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/50"
+          className="mb-3 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--amber)_35%,white)] bg-[var(--amber-soft)] p-3"
         >
-          <p className="text-sm font-medium">
+          <p className="text-[13px] font-medium">
             {blocked.deal.client_name} · {blocked.deal.title} cannot move to {blocked.stage.label}
           </p>
-          <p className="mt-1 text-sm text-amber-900 dark:text-amber-200">{blocked.message}</p>
+          <p className="mt-1 text-[13px] text-[var(--amber)]">{blocked.message}</p>
           {blocked.stage.is_terminal && /close_reason|reason is required/i.test(blocked.message) && (
             <div className="mt-2 flex gap-2">
               <input
@@ -132,15 +134,12 @@ export function Board({
             </div>
           )}
           <div className="mt-2 flex gap-3">
-            <a
-              className="text-xs font-medium text-sky-700 underline-offset-2 hover:underline dark:text-sky-400"
-              href={`/deals/${blocked.deal.id}`}
-            >
+            <a className={btnQuiet} href={`/deals/${blocked.deal.id}`}>
               Open the deal and fill what is missing
             </a>
             <button
               type="button"
-              className="text-xs text-neutral-500 underline-offset-2 hover:underline"
+              className="text-[12px] text-[var(--ink-faint)] underline-offset-2 hover:underline"
               onClick={() => setBlocked(null)}
             >
               Dismiss
@@ -151,7 +150,7 @@ export function Board({
 
       {/* A stable id keeps dnd-kit's generated aria ids identical on server and client. */}
       <DndContext id="deal-board" sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <div className="flex gap-3 overflow-x-auto pb-4">
+        <div className="scroll-x flex gap-3 overflow-x-auto pb-3">
           {stages.map((s) => {
             const inStage = deals.filter((d) => d.stage === s.key);
             return (
@@ -162,7 +161,7 @@ export function Board({
                   </Draggable>
                 ))}
                 {inStage.length === 0 && (
-                  <p className="px-1 py-3 text-xs text-neutral-400">Nothing here</p>
+                  <p className="px-1.5 py-4 text-[12px] text-[var(--ink-faint)]">Nothing here</p>
                 )}
               </Column>
             );

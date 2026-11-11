@@ -1,12 +1,25 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { currentProfile } from '@/lib/auth';
-import { clientList, dealList, profiles } from '@/lib/queries';
+import { clientList, dealList, profiles, stages } from '@/lib/queries';
+import { moveStageAction } from '@/lib/actions';
 import { inr, istDate, relativeDue } from '@/lib/format';
-import { Badge, HealthDot, Owner } from '@/components/ui';
+import type { DealRow } from '@/lib/types';
+import { Badge, Code, HealthDot, Owner } from '@/components/ui';
+import { Board } from '@/components/board';
 import { btnPrimary } from '@/components/forms';
+import { Filters, ViewTabs } from './controls';
 
 export const dynamic = 'force-dynamic';
+
+const VIEWS = [
+  { key: 'all', label: 'All deals' },
+  { key: 'pilot', label: 'Pilot' },
+  { key: 'retention', label: 'Retention' },
+  { key: 'expansion', label: 'Expansion' },
+] as const;
+
+type ViewKey = (typeof VIEWS)[number]['key'];
 
 export default async function DealsPage({
   searchParams,
@@ -16,211 +29,205 @@ export default async function DealsPage({
   const me = await currentProfile();
   if (!me) redirect('/login');
   const sp = await searchParams;
-  const page = Math.max(1, Number(sp.page ?? 1));
-  const perPage = 50;
 
-  const [all, people, clients] = await Promise.all([
+  const view = (VIEWS.find((v) => v.key === sp.view)?.key ?? 'all') as ViewKey;
+  const category = view === 'all' ? undefined : view;
+
+  const filters = {
+    health: sp.health,
+    intern: sp.intern,
+    product: sp.product,
+    client: sp.client,
+    q: sp.q,
+  };
+
+  const [all, scoped, people, clients, stageList] = await Promise.all([
+    // Every live deal, so the tabs carry honest counts whatever the filters say.
+    dealList(me, {}),
     dealList(me, {
-      category: sp.category,
-      health: sp.health,
-      intern: sp.intern,
-      product: sp.product,
-      client: sp.client,
-      q: sp.q,
-      includeTerminal: sp.closed === 'on',
+      ...filters,
+      category,
+      includeTerminal: sp.closed === 'on' || !!category,
     }),
     profiles(me),
     clientList(me),
+    category ? stages(me, category) : Promise.resolve([]),
   ]);
 
-  const pages = Math.max(1, Math.ceil(all.length / perPage));
-  const deals = all.slice((page - 1) * perPage, page * perPage);
-  const qs = (p: number) => {
+  const counts: Record<string, number> = {
+    all: all.length,
+    pilot: all.filter((d) => d.category === 'pilot').length,
+    retention: all.filter((d) => d.category === 'retention').length,
+    expansion: all.filter((d) => d.category === 'expansion').length,
+  };
+
+  const live = scoped.filter((d) => !d.stage_is_terminal);
+  const monthly = live.reduce((s, d) => s + Number(d.monthly_value ?? 0), 0);
+  const reds = live.filter((d) => d.health === 'red').length;
+  const attention = live.filter((d) => !d.criteria_complete || d.next_step_overdue).length;
+
+  const page = Math.max(1, Number(sp.page ?? 1));
+  const perPage = 50;
+  const pages = Math.max(1, Math.ceil(scoped.length / perPage));
+  const rows = scoped.slice((page - 1) * perPage, page * perPage);
+  const href = (p: number) => {
     const u = new URLSearchParams(Object.entries(sp).filter(([, v]) => v) as [string, string][]);
     u.set('page', String(p));
     return `/deals?${u}`;
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">
-          All deals <span className="text-neutral-400">{all.length}</span>
-        </h1>
-        <Link href="/deals/new" className={btnPrimary} data-testid="new-deal">
-          New deal
-        </Link>
+        <h1 className="text-[17px] font-semibold tracking-tight">Deals</h1>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/handover"
+            className="text-[12px] font-medium text-[var(--blue-ink)] underline-offset-2 hover:underline"
+          >
+            Pilot handover
+          </Link>
+          <Link href="/deals/new" className={btnPrimary} data-testid="new-deal">
+            New deal
+          </Link>
+        </div>
       </div>
 
-      <form className="flex flex-wrap items-end gap-2 rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
-        <Text name="q" label="Search" value={sp.q} />
-        <Select
-          name="category"
-          label="Category"
-          value={sp.category}
-          options={[
-            ['pilot', 'Pilot'],
-            ['retention', 'Retention'],
-            ['expansion', 'Expansion'],
-          ]}
-        />
-        <Select
-          name="health"
-          label="Health"
-          value={sp.health}
-          options={[
-            ['red', 'Red'],
-            ['amber', 'Amber'],
-            ['green', 'Green'],
-          ]}
-        />
-        <Select
-          name="intern"
-          label="Intern"
-          value={sp.intern}
-          options={people.filter((p) => p.role !== 'viewer').map((p) => [p.id, p.name])}
-        />
-        <Select
-          name="client"
-          label="Client"
-          value={sp.client}
-          options={clients.map((c) => [c.id, c.name] as [string, string])}
-        />
-        <Text name="product" label="Product" value={sp.product} />
-        <label className="flex items-center gap-1.5 pb-1.5 text-xs">
-          <input type="checkbox" name="closed" defaultChecked={sp.closed === 'on'} />
-          Include closed
-        </label>
-        <button className={btnPrimary}>Apply</button>
-        <Link href="/deals" className="pb-1.5 text-xs text-neutral-500 hover:underline">
-          Clear
-        </Link>
-      </form>
+      <ViewTabs views={VIEWS} current={view} counts={counts} />
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-        <table className="w-full text-sm" data-testid="deals-table">
-          <thead className="border-b border-neutral-200 text-left text-xs uppercase tracking-wide text-neutral-500 dark:border-neutral-800">
-            <tr>
-              <th className="px-3 py-2 font-medium">Deal</th>
-              <th className="px-3 py-2 font-medium">Stage</th>
-              <th className="px-3 py-2 font-medium">Health</th>
-              <th className="px-3 py-2 font-medium">Next step</th>
-              <th className="px-3 py-2 text-right font-medium">Monthly</th>
-              <th className="px-3 py-2 font-medium">Owner</th>
-              <th className="px-3 py-2 font-medium">Ends</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-            {deals.map((d) => (
-              <tr key={d.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
-                <td className="px-3 py-2">
-                  <Link href={`/deals/${d.id}`} className="font-medium hover:underline">
-                    {d.title}
-                  </Link>
-                  <span className="ml-2 text-xs text-neutral-500">{d.client_name}</span>
-                  {!d.criteria_complete && !d.stage_is_terminal && (
-                    <span className="ml-2">
-                      <Badge tone="amber">Criteria incomplete</Badge>
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  <Badge tone={d.stage_flag === 'red' ? 'red' : d.stage_flag === 'amber' ? 'amber' : 'neutral'}>
-                    {d.stage_label}
-                  </Badge>
-                </td>
-                <td className="px-3 py-2">
-                  <HealthDot health={d.health} />
-                </td>
-                <td className="px-3 py-2">
-                  <span className="block max-w-xs truncate text-xs">{d.next_step ?? '—'}</span>
-                  <span
-                    className={`text-xs ${d.next_step_overdue ? 'font-semibold text-rose-600' : 'text-neutral-400'}`}
-                  >
-                    {relativeDue(d.next_step_due)}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">{inr(d.monthly_value, true)}</td>
-                <td className="px-3 py-2">
-                  <Owner name={d.intern_owner_name} />
-                </td>
-                <td className="px-3 py-2 text-xs text-neutral-500">{istDate(d.end_date)}</td>
-              </tr>
-            ))}
-            {deals.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-sm text-neutral-500">
-                  No deals match these filters.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px] text-[var(--ink-muted)]">
+        <span>
+          <span className="font-medium tabular-nums text-[var(--ink)]">{live.length}</span> live
+        </span>
+        <span>
+          <span className="font-medium tabular-nums text-[var(--ink)]">{inr(monthly, true)}</span> a
+          month
+        </span>
+        {reds > 0 && (
+          <span className="inline-flex items-center gap-1.5">
+            <HealthDot health="red" />
+            <span className="tabular-nums">{reds}</span> red
+          </span>
+        )}
+        {attention > 0 && (
+          <span className="tabular-nums">{attention} missing criteria or a next step</span>
+        )}
       </div>
 
-      {/* AU-6: visible page numbers, no infinite scroll */}
-      {pages > 1 && (
-        <nav className="flex gap-1" data-testid="pagination">
-          {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
-            <Link
-              key={p}
-              href={qs(p)}
-              className={`rounded-md border px-2.5 py-1 text-sm ${
-                p === page
-                  ? 'border-neutral-900 font-medium dark:border-white'
-                  : 'border-neutral-200 text-neutral-500 dark:border-neutral-800'
-              }`}
-            >
-              {p}
-            </Link>
-          ))}
-        </nav>
+      <Filters
+        people={people.filter((p) => p.role !== 'viewer').map((p) => ({ id: p.id, name: p.name }))}
+        clients={clients.map((c) => ({ id: c.id, name: c.name }))}
+        values={{ ...filters, closed: sp.closed, view }}
+        showClosed={view === 'all'}
+      />
+
+      {category ? (
+        <Board stages={stageList} deals={scoped} move={moveStageAction} />
+      ) : (
+        <>
+          <DealTable rows={rows} />
+          {pages > 1 && (
+            <nav className="flex gap-1" data-testid="pagination">
+              {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
+                <Link
+                  key={p}
+                  href={href(p)}
+                  className={`rounded-md border px-2.5 py-1 text-[12px] tabular-nums transition ${
+                    p === page
+                      ? 'border-[var(--ink)] font-medium text-[var(--ink)]'
+                      : 'border-[var(--line)] text-[var(--ink-muted)] hover:bg-[var(--paper-sunk)]'
+                  }`}
+                >
+                  {p}
+                </Link>
+              ))}
+            </nav>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-function Text({ name, label, value }: { name: string; label: string; value?: string }) {
+function DealTable({ rows }: { rows: DealRow[] }) {
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-[var(--radius)] border border-[var(--line)] px-4 py-12 text-center text-sm text-[var(--ink-faint)]">
+        No deals match these filters.
+      </div>
+    );
+  }
   return (
-    <label className="block">
-      <span className="block text-[11px] uppercase tracking-wide text-neutral-500">{label}</span>
-      <input
-        name={name}
-        defaultValue={value ?? ''}
-        data-testid={`filter-${name}`}
-        className="mt-1 w-36 rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-950"
-      />
-    </label>
-  );
-}
-
-function Select({
-  name,
-  label,
-  value,
-  options,
-}: {
-  name: string;
-  label: string;
-  value?: string;
-  options: [string, string][];
-}) {
-  return (
-    <label className="block">
-      <span className="block text-[11px] uppercase tracking-wide text-neutral-500">{label}</span>
-      <select
-        name={name}
-        defaultValue={value ?? ''}
-        data-testid={`filter-${name}`}
-        className="mt-1 w-36 rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-950"
-      >
-        <option value="">Any</option>
-        {options.map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--line)]">
+      <table className="w-full border-collapse text-sm" data-testid="deals-table">
+        <thead>
+          <tr className="border-b border-[var(--line)] bg-[var(--paper-sunk)] text-left text-[10px] uppercase tracking-[0.06em] text-[var(--ink-faint)]">
+            <th className="px-3 py-2 font-medium">Deal</th>
+            <th className="px-3 py-2 font-medium">Category</th>
+            <th className="px-3 py-2 font-medium">Stage</th>
+            <th className="px-3 py-2 font-medium">Next step</th>
+            <th className="px-3 py-2 text-right font-medium">Monthly</th>
+            <th className="px-3 py-2 font-medium">Owner</th>
+            <th className="px-3 py-2 font-medium">Ends</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((d) => (
+            <tr
+              key={d.id}
+              className="border-b border-[var(--line)] align-top transition last:border-0 hover:bg-[var(--paper-sunk)]"
+            >
+              <td className="px-3 py-2.5">
+                <div className="flex items-start gap-2">
+                  <span className="mt-[7px]">
+                    <HealthDot health={d.health} />
+                  </span>
+                  <div className="min-w-0">
+                    <Link
+                      href={`/deals/${d.id}`}
+                      className="font-medium text-[var(--ink)] transition hover:text-[var(--blue-ink)]"
+                    >
+                      {d.title}
+                    </Link>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--ink-muted)]">
+                      {d.client_name}
+                      {d.code && <Code>{d.code}</Code>}
+                      {!d.criteria_complete && !d.stage_is_terminal && (
+                        <Badge tone="warn">Criteria incomplete</Badge>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </td>
+              <td className="px-3 py-2.5 text-[12px] capitalize text-[var(--ink-muted)]">
+                {d.category}
+              </td>
+              <td className="px-3 py-2.5">
+                <Badge tone={d.stage_flag === 'ok' ? 'neutral' : 'warn'}>{d.stage_label}</Badge>
+              </td>
+              <td className="px-3 py-2.5">
+                <p className="max-w-[22rem] truncate text-[12px] text-[var(--ink)]">
+                  {d.next_step ?? '—'}
+                </p>
+                <p
+                  className={`text-[11px] ${d.next_step_overdue ? 'font-medium text-[var(--red)]' : 'text-[var(--ink-faint)]'}`}
+                >
+                  {relativeDue(d.next_step_due)}
+                </p>
+              </td>
+              <td className="px-3 py-2.5 text-right text-[12px] tabular-nums">
+                {inr(d.monthly_value, true)}
+              </td>
+              <td className="px-3 py-2.5">
+                <Owner name={d.intern_owner_name} />
+              </td>
+              <td className="px-3 py-2.5 text-[11px] text-[var(--ink-muted)]">
+                {istDate(d.end_date)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

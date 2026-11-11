@@ -6,11 +6,15 @@ import type { Result } from '@/lib/actions';
 import type { Health } from '@/lib/types';
 
 export const input =
-  'w-full rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950';
+  'w-full rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2.5 py-1.5 text-sm text-[var(--ink)] placeholder:text-[var(--ink-faint)] outline-none transition focus:border-[var(--blue)]';
 export const btn =
-  'inline-flex items-center justify-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium transition hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800';
+  'inline-flex items-center justify-center gap-1.5 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-3 py-1.5 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--paper-sunk)] disabled:opacity-40';
 export const btnPrimary =
-  'inline-flex items-center justify-center gap-1.5 rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200';
+  'inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--ink)] px-3 py-1.5 text-sm font-medium text-white transition hover:bg-[color-mix(in_srgb,var(--ink)_85%,white)] disabled:opacity-40';
+export const btnQuiet =
+  'text-[12px] font-medium text-[var(--blue-ink)] underline-offset-2 transition hover:underline disabled:opacity-40';
+export const label =
+  'block text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--ink-faint)]';
 
 /** AU-5: every form validates inline with a plain-language error. */
 export function ActionForm({
@@ -54,7 +58,7 @@ export function ActionForm({
     >
       {children}
       {error && (
-        <p data-testid="form-error" className="mt-2 rounded-md bg-rose-50 px-2.5 py-1.5 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+        <p data-testid="form-error" className="mt-2 rounded-md bg-[var(--red-soft)] px-2.5 py-1.5 text-[13px] text-[var(--red)]">
           {error}
         </p>
       )}
@@ -84,9 +88,9 @@ export function HealthControl({
   const router = useRouter();
 
   const colors: Record<Health, string> = {
-    red: 'bg-rose-500 text-white border-rose-500',
-    amber: 'bg-amber-500 text-white border-amber-500',
-    green: 'bg-emerald-500 text-white border-emerald-500',
+    red: 'border-[var(--red)] bg-[var(--red-soft)] text-[var(--red)]',
+    amber: 'border-[var(--amber)] bg-[var(--amber-soft)] text-[var(--amber)]',
+    green: 'border-[var(--green)] bg-[var(--green-soft)] text-[var(--green-ink)]',
   };
 
   return (
@@ -101,10 +105,10 @@ export function HealthControl({
               setPicked(h);
               setError(null);
             }}
-            className={`rounded-md border px-2.5 py-1 text-xs font-medium capitalize transition ${
+            className={`rounded-md border px-2.5 py-1 text-[12px] font-medium capitalize transition ${
               picked === h || (!picked && current === h)
                 ? colors[h]
-                : 'border-neutral-300 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800'
+                : 'border-[var(--line-strong)] text-[var(--ink-muted)] hover:bg-[var(--paper-sunk)]'
             }`}
           >
             {h}
@@ -112,15 +116,13 @@ export function HealthControl({
         ))}
       </div>
       {current && !picked && (
-        <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
+        <p className="mt-2 text-[12px] text-[var(--ink-muted)]">
           <span className="font-medium capitalize">{current}</span> — {currentReason}
         </p>
       )}
       {picked && (
         <div className="mt-2">
-          <label className="text-[11px] uppercase tracking-wide text-neutral-500">
-            Reason (required)
-          </label>
+          <label className={label}>Reason (required)</label>
           <textarea
             data-testid="health-reason"
             className={`${input} mt-1`}
@@ -130,7 +132,7 @@ export function HealthControl({
             placeholder="Why is this deal this colour today?"
           />
           {error && (
-            <p data-testid="health-error" className="mt-1 text-sm text-rose-600">
+            <p data-testid="health-error" className="mt-1 text-[13px] text-[var(--red)]">
               {error}
             </p>
           )}
@@ -169,13 +171,13 @@ export function MoveToMenu({
   stages,
   current,
   move,
-  label = 'Move to',
+  menuLabel = 'Move to',
 }: {
   dealId: string;
   stages: { key: string; label: string; is_terminal: boolean }[];
   current: string;
   move: (id: string, stage: string, reason?: string, closeReason?: string) => Promise<Result>;
-  label?: string;
+  menuLabel?: string;
 }) {
   const [target, setTarget] = useState('');
   const [closeReason, setCloseReason] = useState('');
@@ -186,7 +188,7 @@ export function MoveToMenu({
 
   return (
     <div data-testid="move-to">
-      <label className="text-[11px] uppercase tracking-wide text-neutral-500">{label}</label>
+      <span className={label}>{menuLabel}</span>
       <select
         data-testid="move-to-select"
         className={`${input} mt-1`}
@@ -215,7 +217,7 @@ export function MoveToMenu({
         />
       )}
       {error && (
-        <p data-testid="move-error" className="mt-2 rounded-md bg-rose-50 px-2.5 py-1.5 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+        <p data-testid="move-error" className="mt-2 rounded-md bg-[var(--amber-soft)] px-2.5 py-1.5 text-[13px] text-[var(--amber)]">
           {error}
         </p>
       )}
@@ -288,7 +290,7 @@ export function ConfirmButton({
       <button
         type="button"
         data-testid={testId}
-        className="text-xs font-medium text-sky-700 underline-offset-2 hover:underline dark:text-sky-400"
+        className={btnQuiet}
         disabled={pending}
         onClick={() => {
           if (!armed) return setArmed(true);
@@ -303,7 +305,7 @@ export function ConfirmButton({
       >
         {pending ? '…' : armed ? confirmLabel : label}
       </button>
-      {error && <span className="ml-2 text-xs text-rose-600">{error}</span>}
+      {error && <span className="ml-2 text-[12px] text-[var(--red)]">{error}</span>}
     </span>
   );
 }

@@ -28,7 +28,7 @@ export function CompleteTask({ taskId, dealId }: { taskId: string; dealId: strin
       <button
         type="button"
         data-testid={`complete-task-${taskId}`}
-        className="shrink-0 rounded-md border border-neutral-300 px-2 py-0.5 text-xs hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+        className="shrink-0 rounded-md border border-[var(--line-strong)] px-2 py-0.5 text-[12px] hover:bg-[var(--paper-sunk)]"
         onClick={() => (dealId ? setAsking(true) : run())}
         disabled={pending}
       >
@@ -38,8 +38,8 @@ export function CompleteTask({ taskId, dealId }: { taskId: string; dealId: strin
   }
 
   return (
-    <div className="w-full rounded-lg border border-neutral-200 p-2 dark:border-neutral-800">
-      <p className="text-xs text-neutral-500">What is the next step on this deal?</p>
+    <div className="w-full rounded-lg border border-[var(--line)] p-2">
+      <p className="text-[12px] text-[var(--ink-muted)]">What is the next step on this deal?</p>
       <input
         className={`${input} mt-1`}
         data-testid="next-step-title"
@@ -54,7 +54,7 @@ export function CompleteTask({ taskId, dealId }: { taskId: string; dealId: strin
         value={due}
         onChange={(e) => setDue(e.target.value)}
       />
-      {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
+      {error && <p className="mt-1 text-[12px] text-[var(--red)]">{error}</p>}
       <div className="mt-2 flex gap-2">
         <button className={btnPrimary} disabled={pending} onClick={() => run(next, due)}>
           Complete
@@ -77,7 +77,7 @@ export function UndoButton({ activityId, field }: { activityId: string; field?: 
       <button
         type="button"
         data-testid={`undo-${activityId}${field ? '-' + field : ''}`}
-        className="text-xs font-medium text-sky-700 underline-offset-2 hover:underline disabled:opacity-50 dark:text-sky-400"
+        className="text-[12px] font-medium text-[var(--blue-ink)] underline-offset-2 hover:underline disabled:opacity-50"
         disabled={pending}
         onClick={() =>
           start(async () => {
@@ -89,7 +89,7 @@ export function UndoButton({ activityId, field }: { activityId: string; field?: 
       >
         {pending ? '…' : field ? `Undo ${field}` : 'Undo'}
       </button>
-      {error && <span className="ml-2 text-xs text-rose-600">{error}</span>}
+      {error && <span className="ml-2 text-[12px] text-[var(--red)]">{error}</span>}
     </span>
   );
 }

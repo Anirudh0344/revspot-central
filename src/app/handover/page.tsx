@@ -18,11 +18,11 @@ export default async function HandoverPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-lg font-semibold">Pilot handover</h1>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-1 text-sm text-[var(--ink-muted)]">
         What sales promised, who decides, and what CS needs to deliver it. Submitting creates the
         pilot in stage Handover.
       </p>
-      <div className="mt-5 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="mt-5 rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4">
         <HandoverForm
           clients={clients.map((c) => ({ id: c.id, name: c.name }))}
           people={people}

@@ -42,16 +42,16 @@ export default async function TasksPage({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-semibold">
-          My work <span className="text-neutral-400">{tasks.length} open</span>
+          My work <span className="text-[var(--ink-faint)]">{tasks.length} open</span>
         </h1>
         <form className="flex items-end gap-2">
           <label className="block">
-            <span className="block text-[11px] uppercase tracking-wide text-neutral-500">Owner</span>
+            <span className="block text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">Owner</span>
             <select
               name="owner"
               defaultValue={owner}
               data-testid="task-owner-filter"
-              className="mt-1 rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+              className="mt-1 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2 py-1 text-sm"
             >
               {people
                 .filter((p) => p.role !== 'viewer')
@@ -62,7 +62,7 @@ export default async function TasksPage({
                 ))}
             </select>
           </label>
-          <button className="mb-0.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm dark:border-neutral-700">
+          <button className="mb-0.5 rounded-md border border-[var(--line-strong)] px-3 py-1.5 text-sm">
             Show
           </button>
         </form>
@@ -85,10 +85,10 @@ export default async function TasksPage({
             <div className="space-y-4">
               {[...byClient.entries()].map(([client, list]) => (
                 <div key={client}>
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--ink-muted)]">
                     {client}
                   </p>
-                  <ul className="mt-1 divide-y divide-neutral-100 dark:divide-neutral-800">
+                  <ul className="mt-1 divide-y divide-[var(--line)]">
                     {list.map((t) => (
                       <li key={t.id} className="flex flex-wrap items-center gap-2 py-2">
                         <span className="min-w-0 flex-1 text-sm">
@@ -96,14 +96,14 @@ export default async function TasksPage({
                           {t.deal_id && (
                             <Link
                               href={`/deals/${t.deal_id}`}
-                              className="ml-2 text-xs text-sky-700 hover:underline dark:text-sky-400"
+                              className="ml-2 text-[12px] text-[var(--blue-ink)] hover:underline"
                             >
                               {t.deal_title}
                             </Link>
                           )}
                         </span>
                         <span
-                          className={`shrink-0 text-xs ${key === 'overdue' ? 'font-semibold text-rose-600' : 'text-neutral-500'}`}
+                          className={`shrink-0 text-[12px] ${key === 'overdue' ? 'font-semibold text-[var(--red)]' : 'text-[var(--ink-muted)]'}`}
                         >
                           {istDate(t.due_date)} · {relativeDue(t.due_date)}
                         </span>

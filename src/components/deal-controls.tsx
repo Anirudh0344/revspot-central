@@ -21,11 +21,11 @@ export function DealControls({ deal, stages }: { deal: DealRow; stages: Stage[] 
         currentReason={deal.health_reason}
         setHealth={setHealthAction}
       />
-      <div className="border-t border-neutral-100 pt-3 dark:border-neutral-800">
+      <div className="border-t border-[var(--line)] pt-3">
         <MoveToMenu dealId={deal.id} stages={stages} current={deal.stage} move={moveStageAction} />
       </div>
       {deal.category === 'pilot' && !deal.stage_is_terminal && (
-        <div className="border-t border-neutral-100 pt-3 dark:border-neutral-800">
+        <div className="border-t border-[var(--line)] pt-3">
           <Disclosure label="Convert to a paid retention deal" testId="convert-pilot">
             <ConvertPilotForm deal={deal} />
           </Disclosure>
@@ -97,8 +97,8 @@ export function CriteriaPanel({ deal }: { deal: DealRow }) {
             const v = deal[f.key] as string | null;
             return (
               <div key={f.key} data-testid={`criteria-${f.key}`}>
-                <dt className="text-[11px] uppercase tracking-wide text-neutral-500">{f.label}</dt>
-                <dd className={`mt-0.5 text-sm ${v ? '' : 'text-rose-600 dark:text-rose-400'}`}>
+                <dt className="text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">{f.label}</dt>
+                <dd className={`mt-0.5 text-sm ${v ? '' : 'text-[var(--red)]'}`}>
                   {v || `${f.label} is empty`}
                 </dd>
               </div>
@@ -281,7 +281,7 @@ export function SnapshotEditor({
 function Static({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-wide text-neutral-500">{label}</dt>
+      <dt className="text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">{label}</dt>
       <dd className="mt-0.5 break-words text-sm">{value || '—'}</dd>
     </div>
   );
@@ -290,8 +290,8 @@ function Static({ label, value }: { label: string; value: string | null }) {
 function Label({ text, hint, children }: { text: string; hint?: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-[11px] uppercase tracking-wide text-neutral-500">{text}</span>
-      {hint && <span className="block text-[11px] text-neutral-400">{hint}</span>}
+      <span className="block text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">{text}</span>
+      {hint && <span className="block text-[11px] text-[var(--ink-faint)]">{hint}</span>}
       <span className="mt-1 block">{children}</span>
     </label>
   );

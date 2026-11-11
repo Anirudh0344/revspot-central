@@ -12,12 +12,8 @@ export const metadata: Metadata = {
 };
 
 const NAV = [
-  { href: '/', label: 'Home' },
-  { href: '/boards/pilot', label: 'Pilots' },
-  { href: '/boards/retention', label: 'Retention' },
-  { href: '/boards/expansion', label: 'Expansion' },
+  { href: '/deals', label: 'Deals' },
   { href: '/clients', label: 'Clients' },
-  { href: '/deals', label: 'All deals' },
   { href: '/tasks', label: 'My work' },
   { href: '/bot', label: 'Bot queue' },
 ];
@@ -26,20 +22,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const me = await currentProfile();
   return (
     <html lang="en">
-      <body className="min-h-screen bg-neutral-50 text-neutral-900 antialiased dark:bg-neutral-950 dark:text-neutral-100">
-        <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white/90 backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/90">
-          <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
-            <Link href="/" className="text-sm font-semibold tracking-tight">
-              Revspot <span className="text-neutral-400">CS Command Center</span>
+      <body className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+        <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--paper)]/95 backdrop-blur">
+          <div className="mx-auto flex max-w-[1320px] flex-wrap items-center gap-x-5 gap-y-2 px-5 py-2.5">
+            <Link href="/deals" className="text-[13px] font-semibold tracking-tight">
+              Revspot <span className="font-normal text-[var(--ink-faint)]">Command Center</span>
             </Link>
             {me && (
-              <nav className="flex flex-wrap items-center gap-1">
+              <nav className="flex flex-wrap items-center gap-0.5">
                 {NAV.map((n) => (
                   <Link
                     key={n.href}
                     href={n.href}
                     data-testid={`nav-${n.label.toLowerCase().replace(/\s+/g, '-')}`}
-                    className="rounded-md px-2.5 py-1 text-sm text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white"
+                    className="rounded-md px-2.5 py-1 text-[13px] text-[var(--ink-muted)] transition hover:bg-[var(--paper-sunk)] hover:text-[var(--ink)]"
                   >
                     {n.label}
                   </Link>
@@ -47,17 +43,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </nav>
             )}
             <div className="ml-auto flex items-center gap-3">
-              <span className="hidden text-xs text-neutral-400 sm:inline">⌘K</span>
+              <kbd className="hidden rounded border border-[var(--line)] bg-[var(--paper-sunk)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--ink-faint)] sm:inline">
+                ⌘K
+              </kbd>
               {me && (
                 <>
-                  <span className="text-sm" data-testid="current-user">
+                  <span className="text-[13px]" data-testid="current-user">
                     {me.name}
                   </span>
-                  <Badge tone={me.role === 'admin' ? 'violet' : me.role === 'bot' ? 'blue' : 'neutral'}>
+                  <Badge tone={me.role === 'admin' ? 'brand' : me.role === 'bot' ? 'brand' : 'neutral'}>
                     {me.role}
                   </Badge>
                   <form action={signOut}>
-                    <button className="text-xs text-neutral-500 underline-offset-2 hover:underline">
+                    <button className="text-[12px] text-[var(--ink-faint)] underline-offset-2 transition hover:text-[var(--ink)] hover:underline">
                       Sign out
                     </button>
                   </form>
@@ -66,7 +64,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-[1400px] px-4 py-6">{children}</main>
+        <main className="mx-auto max-w-[1320px] px-5 py-7">{children}</main>
         {me && <CommandBar />}
       </body>
     </html>

@@ -43,25 +43,25 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="space-y-5">
       {/* DL-12 header */}
-      <header className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+      <header className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4">
         <div className="flex flex-wrap items-center gap-2">
           <HealthDot health={deal.health} size={14} />
-          <Link href={`/clients/${deal.client_id}`} className="text-sm text-neutral-500 hover:underline">
+          <Link href={`/clients/${deal.client_id}`} className="text-sm text-[var(--ink-muted)] hover:underline">
             {deal.client_name}
           </Link>
-          <span className="text-neutral-300">/</span>
+          <span className="text-[var(--line-strong)]">/</span>
           <h1 className="text-lg font-semibold" data-testid="deal-title">
             {deal.title}
           </h1>
-          {deal.code && <Badge tone="blue" testId="deal-code">{deal.code}</Badge>}
-          <Badge tone="violet">{deal.category}</Badge>
+          {deal.code && <Badge tone="brand" testId="deal-code">{deal.code}</Badge>}
+          <Badge tone="brand">{deal.category}</Badge>
           <Badge>{deal.stage_label}</Badge>
           {!deal.criteria_complete && (
-            <Badge tone="amber" testId="criteria-incomplete">Criteria incomplete</Badge>
+            <Badge tone="warn" testId="criteria-incomplete">Criteria incomplete</Badge>
           )}
           {deal.health_stale && <Badge testId="health-stale">Health stale</Badge>}
           {deal.stage_flag !== 'ok' && (
-            <Badge tone={deal.stage_flag === 'red' ? 'red' : 'amber'}>
+            <Badge tone={deal.stage_flag === 'red' ? 'bad' : 'warn'}>
               {deal.days_in_stage} days in stage
             </Badge>
           )}
@@ -71,7 +71,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                 href={deal.context_doc_url}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs text-sky-700 hover:underline dark:text-sky-400"
+                className="text-[12px] text-[var(--blue-ink)] hover:underline"
                 data-testid="context-doc"
               >
                 Context doc ↗
@@ -79,7 +79,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             )}
             <Link
               href={`/deals/${deal.id}/summary`}
-              className="text-xs text-sky-700 hover:underline dark:text-sky-400"
+              className="text-[12px] text-[var(--blue-ink)] hover:underline"
               data-testid="summary-link"
             >
               Plain summary
@@ -112,7 +112,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
               <Empty>No line items yet.</Empty>
             ) : (
               <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase tracking-wide text-neutral-500">
+                <thead className="text-left text-[12px] uppercase tracking-wide text-[var(--ink-muted)]">
                   <tr>
                     <th className="pb-1 font-medium">Description</th>
                     <th className="pb-1 text-right font-medium">Qty</th>
@@ -121,19 +121,19 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                     <th className="pb-1 text-right font-medium">Delivered</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                <tbody className="divide-y divide-[var(--line)]">
                   {items.map((li) => (
                     <tr key={li.id}>
                       <td className="py-1.5">
                         {li.description}
-                        {li.unit && <span className="ml-1 text-xs text-neutral-400">{li.unit}</span>}
+                        {li.unit && <span className="ml-1 text-[12px] text-[var(--ink-faint)]">{li.unit}</span>}
                       </td>
                       <td className="py-1.5 text-right tabular-nums">{Number(li.quantity)}</td>
                       <td className="py-1.5 text-right tabular-nums">{inr(li.rate)}</td>
                       <td className="py-1.5 text-right tabular-nums">{inr(li.amount)}</td>
                       <td className="py-1.5 text-right tabular-nums">
                         {Number(li.delivered_quantity)}
-                        <span className="ml-1 text-xs text-neutral-400">
+                        <span className="ml-1 text-[12px] text-[var(--ink-faint)]">
                           {Number(li.quantity) > 0
                             ? `${Math.round((Number(li.delivered_quantity) / Number(li.quantity)) * 100)}%`
                             : ''}
@@ -153,7 +153,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                 </tbody>
               </table>
             )}
-            <div className="mt-4 border-t border-neutral-100 pt-3 dark:border-neutral-800">
+            <div className="mt-4 border-t border-[var(--line)] pt-3">
               <AddLineItemForm dealId={deal.id} />
             </div>
           </Card>
@@ -163,10 +163,10 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
               {contacts.map((c) => (
                 <li
                   key={c.id}
-                  className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm dark:border-neutral-800"
+                  className="rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-sm"
                 >
                   {c.name}
-                  <span className="ml-1.5 text-xs text-neutral-500">{c.role.replace('_', ' ')}</span>
+                  <span className="ml-1.5 text-[12px] text-[var(--ink-muted)]">{c.role.replace('_', ' ')}</span>
                 </li>
               ))}
               {contacts.length === 0 && <Empty>No contacts on this client.</Empty>}
@@ -183,13 +183,13 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           <Card title="Health" testId="panel-health">
             <DealControls deal={deal} stages={stageList} />
             {history.length > 0 && (
-              <ol className="mt-4 space-y-2 border-t border-neutral-100 pt-3 dark:border-neutral-800">
+              <ol className="mt-4 space-y-2 border-t border-[var(--line)] pt-3">
                 {history.map((h, i) => (
-                  <li key={i} className="flex gap-2 text-xs">
+                  <li key={i} className="flex gap-2 text-[12px]">
                     <HealthDot health={h.health as 'red' | 'amber' | 'green'} />
                     <div className="min-w-0">
-                      <p className="text-neutral-700 dark:text-neutral-300">{h.reason}</p>
-                      <p className="text-neutral-400">
+                      <p className="text-[var(--ink)]">{h.reason}</p>
+                      <p className="text-[var(--ink-faint)]">
                         {istDate(h.set_at)} · {h.set_by_name ?? 'system'}
                       </p>
                     </div>
@@ -204,7 +204,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
               <>
                 <p className="text-sm">{deal.next_step}</p>
                 <p
-                  className={`mt-1 text-xs ${deal.next_step_overdue ? 'font-semibold text-rose-600' : 'text-neutral-500'}`}
+                  className={`mt-1 text-[12px] ${deal.next_step_overdue ? 'font-semibold text-[var(--red)]' : 'text-[var(--ink-muted)]'}`}
                 >
                   Due {istDate(deal.next_step_due)} · {relativeDue(deal.next_step_due)}
                 </p>
@@ -215,17 +215,17 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           </Card>
 
           <Card title="Tasks" testId="panel-tasks" count={tasks.length}>
-            <ul className="divide-y divide-neutral-100 dark:divide-neutral-800">
+            <ul className="divide-y divide-[var(--line)]">
               {tasks.map((t) => (
                 <li key={t.id} className="flex items-center gap-2 py-2">
                   <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
-                  <span className="shrink-0 text-xs text-neutral-500">{relativeDue(t.due_date)}</span>
+                  <span className="shrink-0 text-[12px] text-[var(--ink-muted)]">{relativeDue(t.due_date)}</span>
                   <CompleteTask taskId={t.id} dealId={deal.id} />
                 </li>
               ))}
               {tasks.length === 0 && <Empty>No open tasks.</Empty>}
             </ul>
-            <div className="mt-3 border-t border-neutral-100 pt-3 dark:border-neutral-800">
+            <div className="mt-3 border-t border-[var(--line)] pt-3">
               <AddTaskForm dealId={deal.id} clientId={deal.client_id} people={people} />
             </div>
           </Card>
@@ -233,8 +233,8 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           <Card title="Recent interactions" testId="panel-interactions" count={interactions.length}>
             <ul className="space-y-2">
               {interactions.map((i) => (
-                <li key={i.id} className="border-l-2 border-neutral-200 pl-2.5 dark:border-neutral-700">
-                  <p className="text-xs text-neutral-500">
+                <li key={i.id} className="border-l-2 border-[var(--line)] pl-2.5">
+                  <p className="text-[12px] text-[var(--ink-muted)]">
                     {istDateTime(i.occurred_at)} · {i.channel}
                   </p>
                   <p className="text-sm">{i.summary}</p>
@@ -242,7 +242,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
               ))}
               {interactions.length === 0 && <Empty>Nothing logged yet.</Empty>}
             </ul>
-            <div className="mt-3 border-t border-neutral-100 pt-3 dark:border-neutral-800">
+            <div className="mt-3 border-t border-[var(--line)] pt-3">
               <LogInteractionForm clientId={deal.client_id} dealId={deal.id} deals={[]} />
             </div>
           </Card>

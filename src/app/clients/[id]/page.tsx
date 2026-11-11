@@ -45,16 +45,16 @@ export default async function ClientPage({
 
   return (
     <div className="space-y-5">
-      <header className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+      <header className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4">
         <div className="flex flex-wrap items-center gap-3">
           <HealthDot health={client.health} size={14} />
           <h1 className="text-lg font-semibold" data-testid="client-name">
             {client.name}
           </h1>
-          <Badge tone={client.status === 'Active' ? 'green' : client.status === 'Churned' ? 'red' : 'neutral'}>
+          <Badge tone={client.status === 'Active' ? 'good' : client.status === 'Churned' ? 'bad' : 'neutral'}>
             {client.status}
           </Badge>
-          {client.single_threaded && <Badge tone="amber">Single-threaded</Badge>}
+          {client.single_threaded && <Badge tone="warn">Single-threaded</Badge>}
           <div className="ml-auto flex gap-2">
             <Link href={`/deals/new?client=${client.id}`} className={btn} data-testid="add-deal">
               New deal
@@ -72,14 +72,14 @@ export default async function ClientPage({
           <Field label="GSTIN">{client.gstin ?? '—'}</Field>
         </dl>
         {client.whitespace_notes && (
-          <div className="mt-4 rounded-lg bg-neutral-50 p-3 text-sm dark:bg-neutral-800/60">
-            <p className="text-[11px] uppercase tracking-wide text-neutral-500">Whitespace</p>
+          <div className="mt-4 rounded-lg bg-[var(--paper-sunk)] p-3 text-sm">
+            <p className="text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">Whitespace</p>
             <p className="mt-1">{client.whitespace_notes}</p>
           </div>
         )}
       </header>
 
-      <nav className="flex gap-1 border-b border-neutral-200 dark:border-neutral-800">
+      <nav className="flex gap-1 border-b border-[var(--line)]">
         {TABS.map((t) => (
           <Link
             key={t}
@@ -87,8 +87,8 @@ export default async function ClientPage({
             data-testid={`tab-${t}`}
             className={`-mb-px border-b-2 px-3 py-2 text-sm capitalize ${
               tab === t
-                ? 'border-neutral-900 font-medium dark:border-white'
-                : 'border-transparent text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                ? 'border-[var(--ink)] font-medium'
+                : 'border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)]'
             }`}
           >
             {t}
@@ -109,22 +109,22 @@ export default async function ClientPage({
         <div className="grid gap-5 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <Card title="Contacts" count={contacts.length}>
-              <ul className="divide-y divide-neutral-100 dark:divide-neutral-800">
+              <ul className="divide-y divide-[var(--line)]">
                 {contacts.map((c) => (
                   <li key={c.id} className="flex flex-wrap items-center gap-3 py-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium">
                         {c.name}
-                        {c.title && <span className="ml-2 text-xs text-neutral-500">{c.title}</span>}
+                        {c.title && <span className="ml-2 text-[12px] text-[var(--ink-muted)]">{c.title}</span>}
                       </p>
-                      <p className="text-xs text-neutral-500">
+                      <p className="text-[12px] text-[var(--ink-muted)]">
                         {[c.email, c.phone, c.whatsapp].filter(Boolean).join(' · ') || '—'}
                       </p>
                     </div>
-                    <Badge tone={c.role === 'decision_maker' ? 'violet' : 'neutral'}>
+                    <Badge tone={c.role === 'decision_maker' ? 'brand' : 'neutral'}>
                       {c.role.replace('_', ' ')}
                     </Badge>
-                    <span className="text-xs text-neutral-400">
+                    <span className="text-[12px] text-[var(--ink-faint)]">
                       last contacted {istDate(c.last_contacted_at)}
                     </span>
                   </li>
@@ -145,14 +145,14 @@ export default async function ClientPage({
             <Card title="Interactions" count={interactions.length}>
               <ul className="space-y-3">
                 {interactions.map((i) => (
-                  <li key={i.id} className="border-l-2 border-neutral-200 pl-3 dark:border-neutral-700">
-                    <p className="text-xs text-neutral-500">
+                  <li key={i.id} className="border-l-2 border-[var(--line)] pl-3">
+                    <p className="text-[12px] text-[var(--ink-muted)]">
                       {istDateTime(i.occurred_at)} · {i.channel} · {i.direction ?? 'outbound'}
                       {i.logged_by_name ? ` · ${i.logged_by_name}` : ''}
                     </p>
                     <p className="mt-0.5 text-sm">{i.summary}</p>
                     {i.next_step && (
-                      <p className="mt-0.5 text-xs text-neutral-600 dark:text-neutral-300">
+                      <p className="mt-0.5 text-[12px] text-[var(--ink-muted)]">
                         Next: {i.next_step}
                       </p>
                     )}

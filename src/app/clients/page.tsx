@@ -33,14 +33,14 @@ export default async function ClientsPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-semibold">
-          Clients <span className="text-neutral-400">{clients.length}</span>
+          Clients <span className="text-[var(--ink-faint)]">{clients.length}</span>
         </h1>
         <Link href="/clients/new" className={btnPrimary} data-testid="new-client">
           New client
         </Link>
       </div>
 
-      <form className="flex flex-wrap items-end gap-2 rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
+      <form className="flex flex-wrap items-end gap-2 rounded-xl border border-[var(--line)] bg-[var(--paper)] p-3">
         <Filter name="q" label="Search" defaultValue={sp.q} type="text" />
         <Select name="status" label="Status" value={sp.status} options={STATUSES.map((s) => [s, s])} />
         <Select
@@ -63,14 +63,14 @@ export default async function ClientsPage({
         <button className={btnPrimary} data-testid="apply-filters">
           Apply
         </button>
-        <Link href="/clients" className="pb-1.5 text-xs text-neutral-500 hover:underline">
+        <Link href="/clients" className="pb-1.5 text-[12px] text-[var(--ink-muted)] hover:underline">
           Clear
         </Link>
       </form>
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--paper)]">
         <table className="w-full text-sm" data-testid="clients-table">
-          <thead className="border-b border-neutral-200 text-left text-xs uppercase tracking-wide text-neutral-500 dark:border-neutral-800">
+          <thead className="border-b border-[var(--line)] text-left text-[12px] uppercase tracking-wide text-[var(--ink-muted)]">
             <tr>
               <th className="px-4 py-2 font-medium">Client</th>
               <th className="px-4 py-2 font-medium">Status</th>
@@ -81,26 +81,26 @@ export default async function ClientsPage({
               <th className="px-4 py-2 font-medium">Last contact</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+          <tbody className="divide-y divide-[var(--line)]">
             {clients.map((c) => (
-              <tr key={c.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+              <tr key={c.id} className="hover:bg-[var(--paper-sunk)]">
                 <td className="px-4 py-2">
                   <Link href={`/clients/${c.id}`} className="font-medium hover:underline">
                     {c.name}
                   </Link>
                   {c.single_threaded && (
                     <span className="ml-2">
-                      <Badge tone="amber" testId={`single-threaded-${c.id}`}>
+                      <Badge tone="warn" testId={`single-threaded-${c.id}`}>
                         Single-threaded
                       </Badge>
                     </span>
                   )}
-                  {c.city && <span className="ml-2 text-xs text-neutral-400">{c.city}</span>}
+                  {c.city && <span className="ml-2 text-[12px] text-[var(--ink-faint)]">{c.city}</span>}
                 </td>
                 <td className="px-4 py-2">
                   <Badge
                     tone={
-                      c.status === 'Active' ? 'green' : c.status === 'Churned' ? 'red' : 'neutral'
+                      c.status === 'Active' ? 'good' : c.status === 'Churned' ? 'bad' : 'neutral'
                     }
                   >
                     {c.status}
@@ -109,7 +109,7 @@ export default async function ClientsPage({
                 <td className="px-4 py-2">
                   <HealthDot health={c.health} />
                 </td>
-                <td className="px-4 py-2 text-xs text-neutral-600 dark:text-neutral-300">
+                <td className="px-4 py-2 text-[12px] text-[var(--ink-muted)]">
                   {[
                     Number(c.open_pilots) ? `${c.open_pilots} pilot` : null,
                     Number(c.open_retention) ? `${c.open_retention} retention` : null,
@@ -122,14 +122,14 @@ export default async function ClientsPage({
                 <td className="px-4 py-2">
                   <Owner name={c.intern_owner_name} />
                 </td>
-                <td className="px-4 py-2 text-xs text-neutral-500">
+                <td className="px-4 py-2 text-[12px] text-[var(--ink-muted)]">
                   {istDate(c.last_interaction_at)}
                 </td>
               </tr>
             ))}
             {clients.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-sm text-neutral-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-sm text-[var(--ink-muted)]">
                   No clients match these filters.
                 </td>
               </tr>
@@ -154,13 +154,13 @@ function Filter({
 }) {
   return (
     <label className="block">
-      <span className="block text-[11px] uppercase tracking-wide text-neutral-500">{label}</span>
+      <span className="block text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">{label}</span>
       <input
         name={name}
         type={type}
         defaultValue={defaultValue ?? ''}
         data-testid={`filter-${name}`}
-        className="mt-1 w-36 rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+        className="mt-1 w-36 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2 py-1 text-sm"
       />
     </label>
   );
@@ -179,12 +179,12 @@ function Select({
 }) {
   return (
     <label className="block">
-      <span className="block text-[11px] uppercase tracking-wide text-neutral-500">{label}</span>
+      <span className="block text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">{label}</span>
       <select
         name={name}
         defaultValue={value ?? ''}
         data-testid={`filter-${name}`}
-        className="mt-1 w-36 rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+        className="mt-1 w-36 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2 py-1 text-sm"
       >
         <option value="">Any</option>
         {options.map(([v, l]) => (

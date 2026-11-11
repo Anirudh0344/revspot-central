@@ -8,12 +8,11 @@ import { input } from './forms';
 type Hit = { href: string; label: string; sub: string; kind: string };
 
 const ACTIONS: Hit[] = [
-  { href: '/', label: 'Home', sub: 'The 15-minute check-in', kind: 'Go' },
-  { href: '/boards/pilot', label: 'Pilot board', sub: 'Kanban', kind: 'Go' },
-  { href: '/boards/retention', label: 'Retention board', sub: 'Kanban', kind: 'Go' },
-  { href: '/boards/expansion', label: 'Expansion board', sub: 'Kanban', kind: 'Go' },
+  { href: '/deals', label: 'All deals', sub: 'The whole pipeline', kind: 'Go' },
+  { href: '/deals?view=pilot', label: 'Pilot view', sub: 'Pipeline board', kind: 'Go' },
+  { href: '/deals?view=retention', label: 'Retention view', sub: 'Pipeline board', kind: 'Go' },
+  { href: '/deals?view=expansion', label: 'Expansion view', sub: 'Pipeline board', kind: 'Go' },
   { href: '/clients', label: 'Clients', sub: 'All clients', kind: 'Go' },
-  { href: '/deals', label: 'All deals', sub: 'Filterable list', kind: 'Go' },
   { href: '/tasks', label: 'My work', sub: 'Tasks by due date', kind: 'Go' },
   { href: '/bot', label: 'Bot work queue', sub: 'What needs doing', kind: 'Go' },
   { href: '/bot/digest', label: 'Bot digest', sub: "Today's bot changes", kind: 'Go' },
@@ -88,18 +87,18 @@ export function CommandBar() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 pt-[12vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-[rgba(15,23,42,0.28)] p-4 pt-[12vh]"
       onClick={() => setOpen(false)}
       data-testid="command-bar"
     >
       <div
-        className="w-full max-w-xl overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl dark:border-neutral-700 dark:bg-neutral-900"
+        className="w-full max-w-xl overflow-hidden rounded-[var(--radius)] border border-[var(--line)] bg-[var(--paper)] shadow-[0_16px_48px_rgba(15,23,42,0.16)]"
         onClick={(e) => e.stopPropagation()}
       >
         <input
           ref={ref}
           data-testid="command-bar-input"
-          className={`${input} rounded-none border-0 border-b px-4 py-3 text-base`}
+          className={`${input} rounded-none border-0 border-b border-[var(--line)] px-4 py-3 text-[15px] focus:border-[var(--line)]`}
           placeholder="Jump to a client or deal, or run an action…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -116,8 +115,8 @@ export function CommandBar() {
           {hits.slice(0, 20).map((h, i) => (
             <li key={h.href + h.label}>
               <button
-                className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm ${
-                  i === active ? 'bg-neutral-100 dark:bg-neutral-800' : ''
+                className={`flex w-full items-center gap-3 px-4 py-2 text-left text-[13px] transition ${
+                  i === active ? 'bg-[var(--paper-sunk)]' : ''
                 }`}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => {
@@ -125,15 +124,17 @@ export function CommandBar() {
                   router.push(h.href);
                 }}
               >
-                <span className="w-12 shrink-0 text-[10px] uppercase tracking-wide text-neutral-400">
+                <span className="w-12 shrink-0 text-[10px] uppercase tracking-[0.06em] text-[var(--ink-faint)]">
                   {h.kind}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{h.label}</span>
-                <span className="truncate text-xs text-neutral-500">{h.sub}</span>
+                <span className="truncate text-[11px] text-[var(--ink-faint)]">{h.sub}</span>
               </button>
             </li>
           ))}
-          {hits.length === 0 && <li className="px-4 py-3 text-sm text-neutral-500">No matches.</li>}
+          {hits.length === 0 && (
+            <li className="px-4 py-3 text-[13px] text-[var(--ink-faint)]">No matches.</li>
+          )}
         </ul>
       </div>
     </div>

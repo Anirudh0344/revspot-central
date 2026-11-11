@@ -6,13 +6,13 @@ import { Badge, Card, Empty } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
-const LABEL: Record<string, { text: string; tone: 'red' | 'amber' | 'neutral' | 'blue' }> = {
-  missing_criteria: { text: 'Success criteria incomplete', tone: 'amber' },
-  missing_next_step: { text: 'No dated next step', tone: 'red' },
-  overdue_next_step: { text: 'Next step overdue', tone: 'red' },
+const LABEL: Record<string, { text: string; tone: 'bad' | 'warn' | 'neutral' | 'brand' }> = {
+  missing_criteria: { text: 'Success criteria incomplete', tone: 'warn' },
+  missing_next_step: { text: 'No dated next step', tone: 'bad' },
+  overdue_next_step: { text: 'Next step overdue', tone: 'bad' },
   stale_health: { text: 'Health not set this week', tone: 'neutral' },
-  stale_stage: { text: 'Too long in its stage', tone: 'amber' },
-  checkin_overdue: { text: 'Check-in overdue', tone: 'blue' },
+  stale_stage: { text: 'Too long in its stage', tone: 'warn' },
+  checkin_overdue: { text: 'Check-in overdue', tone: 'brand' },
 };
 
 const HOW: Record<string, string> = {
@@ -38,9 +38,9 @@ export default async function BotQueuePage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-semibold">
-          Bot work queue <span className="text-neutral-400">{items.length} items</span>
+          Bot work queue <span className="text-[var(--ink-faint)]">{items.length} items</span>
         </h1>
-        <Link href="/bot/digest" className="text-sm text-sky-700 hover:underline dark:text-sky-400">
+        <Link href="/bot/digest" className="text-sm text-[var(--blue-ink)] hover:underline">
           Today&rsquo;s bot digest
         </Link>
       </div>
@@ -58,18 +58,18 @@ export default async function BotQueuePage() {
           count={list.length}
           testId={`queue-${reason}`}
         >
-          <p className="mb-2 text-xs text-neutral-500">{HOW[reason]}</p>
-          <ul className="divide-y divide-neutral-100 dark:divide-neutral-800">
+          <p className="mb-2 text-[12px] text-[var(--ink-muted)]">{HOW[reason]}</p>
+          <ul className="divide-y divide-[var(--line)]">
             {list.map((i) => (
               <li key={`${i.deal_id}-${reason}`} className="flex flex-wrap items-center gap-2 py-2">
                 <Badge tone={LABEL[reason]?.tone ?? 'neutral'}>{reason.replace(/_/g, ' ')}</Badge>
                 <Link href={`/deals/${i.deal_id}`} className="min-w-0 flex-1 truncate text-sm hover:underline">
                   {i.client_name} · {i.title}
                 </Link>
-                {i.code && <Badge tone="blue">{i.code}</Badge>}
+                {i.code && <Badge tone="brand">{i.code}</Badge>}
                 <Link
                   href={`/deals/${i.deal_id}/summary`}
-                  className="text-xs text-sky-700 hover:underline dark:text-sky-400"
+                  className="text-[12px] text-[var(--blue-ink)] hover:underline"
                 >
                   summary
                 </Link>

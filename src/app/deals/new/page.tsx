@@ -24,11 +24,11 @@ export default async function NewDealPage({
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-lg font-semibold">New deal</h1>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-1 text-sm text-[var(--ink-muted)]">
         A live deal always carries a dated next step. Criteria can follow, but the board will not let
         it past kickoff without them.
       </p>
-      <div className="mt-5 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="mt-5 rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4">
         <NewDealForm
           clients={clients.map((c) => ({ id: c.id, name: c.name }))}
           people={people}
