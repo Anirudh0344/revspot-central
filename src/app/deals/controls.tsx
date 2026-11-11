@@ -28,7 +28,7 @@ export function ViewTabs({
 
   return (
     <div
-      className="inline-flex rounded-[var(--radius)] border border-[var(--line)] bg-[var(--paper-sunk)] p-0.5"
+      className="inline-flex rounded-[var(--radius)] border border-[var(--line-blue)] bg-[var(--blue-50)] p-0.5"
       data-testid="view-tabs"
       role="tablist"
     >
@@ -43,13 +43,13 @@ export function ViewTabs({
             data-testid={`view-${v.key}`}
             className={`inline-flex items-center gap-1.5 rounded-[7px] px-3 py-1.5 text-[13px] transition ${
               active
-                ? 'bg-[var(--paper)] font-medium text-[var(--ink)] shadow-[0_1px_2px_rgba(15,23,42,0.06)]'
-                : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
+                ? 'bg-[var(--blue)] font-medium text-white shadow-[var(--lift-blue)]'
+                : 'text-[var(--ink-muted)] hover:bg-[var(--blue-100)] hover:text-[var(--blue-ink)]'
             }`}
           >
             {v.label}
             <span
-              className={`tabular-nums ${active ? 'text-[var(--ink-faint)]' : 'text-[var(--ink-faint)]'}`}
+              className={`tabular-nums ${active ? 'text-[var(--blue-200)]' : 'text-[var(--ink-faint)]'}`}
             >
               {counts[v.key] ?? 0}
             </span>
@@ -101,7 +101,7 @@ export function Filters({
   }
 
   return (
-    <div className="rounded-[var(--radius)] border border-[var(--line)]">
+    <div className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--paper-sunk)]">
       <form action={submit} className="flex flex-wrap items-center gap-2 p-2">
         <div className="w-72">
           <input
@@ -119,12 +119,12 @@ export function Filters({
           type="button"
           onClick={() => setOpen((o) => !o)}
           data-testid="toggle-filters"
-          className="rounded-md px-2 py-1.5 text-[12px] font-medium text-[var(--ink-muted)] transition hover:bg-[var(--paper-sunk)] hover:text-[var(--ink)]"
+          className="rounded-md px-2 py-1.5 text-[12px] font-medium text-[var(--ink-muted)] transition hover:bg-[var(--blue-100)] hover:text-[var(--blue-ink)]"
           aria-expanded={open}
         >
           Filters
           {active > 0 && (
-            <span className="ml-1.5 rounded bg-[var(--blue-soft)] px-1 text-[11px] tabular-nums text-[var(--blue-ink)]">
+            <span className="ml-1.5 rounded bg-[var(--blue-100)] px-1 text-[11px] tabular-nums text-[var(--blue-ink)]">
               {active}
             </span>
           )}

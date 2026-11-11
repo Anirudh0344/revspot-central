@@ -6,11 +6,11 @@ import type { Result } from '@/lib/actions';
 import type { Health } from '@/lib/types';
 
 export const input =
-  'w-full rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2.5 py-1.5 text-sm text-[var(--ink)] placeholder:text-[var(--ink-faint)] outline-none transition focus:border-[var(--blue)]';
+  'w-full rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2.5 py-1.5 text-sm text-[var(--ink)] placeholder:text-[var(--ink-faint)] outline-none transition focus:border-[var(--blue)] focus:ring-2 focus:ring-[var(--blue-100)]';
 export const btn =
-  'inline-flex items-center justify-center gap-1.5 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-3 py-1.5 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--paper-sunk)] disabled:opacity-40';
+  'inline-flex items-center justify-center gap-1.5 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-3 py-1.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--blue-200)] hover:bg-[var(--blue-50)] hover:text-[var(--blue-ink)] disabled:opacity-40';
 export const btnPrimary =
-  'inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--ink)] px-3 py-1.5 text-sm font-medium text-white transition hover:bg-[color-mix(in_srgb,var(--ink)_85%,white)] disabled:opacity-40';
+  'inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--blue)] px-3 py-1.5 text-sm font-medium text-white shadow-[var(--lift-blue)] transition hover:bg-[var(--blue-ink)] disabled:opacity-40';
 export const btnQuiet =
   'text-[12px] font-medium text-[var(--blue-ink)] underline-offset-2 transition hover:underline disabled:opacity-40';
 export const label =

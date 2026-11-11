@@ -28,11 +28,11 @@ export function HealthDot({ health, size = 8 }: { health: Health | null; size?: 
 type Tone = 'neutral' | 'brand' | 'good' | 'warn' | 'bad';
 
 const TONES: Record<Tone, string> = {
-  neutral: 'bg-[var(--paper-sunk)] text-[var(--ink-muted)] ring-[var(--line)]',
-  brand: 'bg-[var(--blue-soft)] text-[var(--blue-ink)] ring-[color-mix(in_srgb,var(--blue)_18%,white)]',
-  good: 'bg-[var(--green-soft)] text-[var(--green-ink)] ring-[color-mix(in_srgb,var(--green)_18%,white)]',
-  warn: 'bg-[var(--amber-soft)] text-[var(--amber)] ring-[color-mix(in_srgb,var(--amber)_20%,white)]',
-  bad: 'bg-[var(--red-soft)] text-[var(--red)] ring-[color-mix(in_srgb,var(--red)_16%,white)]',
+  neutral: 'bg-[var(--paper-blue)] text-[var(--ink-muted)] ring-[var(--line)]',
+  brand: 'bg-[var(--blue-100)] text-[var(--blue-deep)] ring-[var(--blue-200)]',
+  good: 'bg-[var(--green-soft)] text-[var(--green-ink)] ring-[color-mix(in_srgb,var(--green)_20%,white)]',
+  warn: 'bg-[var(--amber-soft)] text-[var(--amber)] ring-[color-mix(in_srgb,var(--amber)_22%,white)]',
+  bad: 'bg-[var(--red-soft)] text-[var(--red)] ring-[color-mix(in_srgb,var(--red)_18%,white)]',
 };
 
 export function Badge({
@@ -83,11 +83,11 @@ export function Card({
       data-testid={testId}
       className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--paper)]"
     >
-      <header className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-2.5">
+      <header className="flex items-center justify-between gap-3 rounded-t-[var(--radius)] border-b border-[var(--line)] bg-[var(--paper-blue)] px-4 py-2.5">
         <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight">
           {title}
           {count !== undefined && (
-            <span className="rounded bg-[var(--paper-sunk)] px-1.5 text-[11px] font-normal tabular-nums text-[var(--ink-muted)]">
+            <span className="rounded bg-[var(--blue-100)] px-1.5 text-[11px] font-normal tabular-nums text-[var(--blue-ink)]">
               {count}
             </span>
           )}
@@ -157,7 +157,7 @@ export function DealCard({ deal, compact }: { deal: DealRow; compact?: boolean }
       data-testid={`deal-card-${deal.id}`}
       className={`relative block overflow-hidden rounded-[var(--radius)] border border-[var(--line)] bg-[var(--paper)] p-3 pl-3.5 transition
         before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:content-[''] ${edge}
-        hover:border-[var(--line-strong)] hover:shadow-[0_1px_2px_rgba(15,23,42,0.06)]`}
+        hover:border-[var(--blue-200)] hover:bg-[var(--blue-50)] hover:shadow-[var(--lift)]`}
     >
       <p className="truncate text-[11px] text-[var(--ink-muted)]">{deal.client_name}</p>
       <p className="mt-0.5 truncate text-[13px] font-medium leading-snug">{deal.title}</p>

@@ -70,7 +70,7 @@ export default async function ClientsPage({
 
       <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--paper)]">
         <table className="w-full text-sm" data-testid="clients-table">
-          <thead className="border-b border-[var(--line)] text-left text-[12px] uppercase tracking-wide text-[var(--ink-muted)]">
+          <thead className="border-b border-[var(--line-blue)] bg-[var(--paper-blue)] text-left text-[10px] uppercase tracking-[0.06em] text-[var(--blue-ink)]">
             <tr>
               <th className="px-4 py-2 font-medium">Client</th>
               <th className="px-4 py-2 font-medium">Status</th>
@@ -83,7 +83,7 @@ export default async function ClientsPage({
           </thead>
           <tbody className="divide-y divide-[var(--line)]">
             {clients.map((c) => (
-              <tr key={c.id} className="hover:bg-[var(--paper-sunk)]">
+              <tr key={c.id} className="transition hover:bg-[var(--blue-50)]">
                 <td className="px-4 py-2">
                   <Link href={`/clients/${c.id}`} className="font-medium hover:underline">
                     {c.name}

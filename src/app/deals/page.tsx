@@ -134,8 +134,8 @@ export default async function DealsPage({
                   href={href(p)}
                   className={`rounded-md border px-2.5 py-1 text-[12px] tabular-nums transition ${
                     p === page
-                      ? 'border-[var(--ink)] font-medium text-[var(--ink)]'
-                      : 'border-[var(--line)] text-[var(--ink-muted)] hover:bg-[var(--paper-sunk)]'
+                      ? 'border-[var(--blue)] bg-[var(--blue-100)] font-medium text-[var(--blue-deep)]'
+                      : 'border-[var(--line)] text-[var(--ink-muted)] hover:border-[var(--blue-200)] hover:bg-[var(--blue-50)]'
                   }`}
                 >
                   {p}
@@ -161,7 +161,7 @@ function DealTable({ rows }: { rows: DealRow[] }) {
     <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--line)]">
       <table className="w-full border-collapse text-sm" data-testid="deals-table">
         <thead>
-          <tr className="border-b border-[var(--line)] bg-[var(--paper-sunk)] text-left text-[10px] uppercase tracking-[0.06em] text-[var(--ink-faint)]">
+          <tr className="border-b border-[var(--line-blue)] bg-[var(--paper-blue)] text-left text-[10px] uppercase tracking-[0.06em] text-[var(--blue-ink)]">
             <th className="px-3 py-2 font-medium">Deal</th>
             <th className="px-3 py-2 font-medium">Category</th>
             <th className="px-3 py-2 font-medium">Stage</th>
@@ -175,7 +175,7 @@ function DealTable({ rows }: { rows: DealRow[] }) {
           {rows.map((d) => (
             <tr
               key={d.id}
-              className="border-b border-[var(--line)] align-top transition last:border-0 hover:bg-[var(--paper-sunk)]"
+              className="border-b border-[var(--line)] align-top transition last:border-0 hover:bg-[var(--blue-50)]"
             >
               <td className="px-3 py-2.5">
                 <div className="flex items-start gap-2">
