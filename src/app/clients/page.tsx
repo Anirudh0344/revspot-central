@@ -32,7 +32,7 @@ export default async function ClientsPage({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">
+        <h1 className="text-[18px] font-semibold">
           Clients <span className="text-[var(--ink-faint)]">{clients.length}</span>
         </h1>
         <Link href="/clients/new" className={btnPrimary} data-testid="new-client">
@@ -69,21 +69,21 @@ export default async function ClientsPage({
       </form>
 
       <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--paper)]">
-        <table className="w-full text-sm" data-testid="clients-table">
-          <thead className="border-b border-[var(--line-blue)] bg-[var(--paper-blue)] text-left text-[10px] uppercase tracking-[0.06em] text-[var(--blue-ink)]">
+        <table className="w-full text-[13px]" data-testid="clients-table">
+          <thead className="border-b border-[var(--line)] bg-[var(--paper-tint)] text-left">
             <tr>
-              <th className="px-4 py-2 font-medium">Client</th>
-              <th className="px-4 py-2 font-medium">Status</th>
-              <th className="px-4 py-2 font-medium">Health</th>
-              <th className="px-4 py-2 font-medium">Open deals</th>
-              <th className="px-4 py-2 text-right font-medium">Monthly</th>
-              <th className="px-4 py-2 font-medium">Owner</th>
-              <th className="px-4 py-2 font-medium">Last contact</th>
+              <th className="t-label px-4 py-2">Client</th>
+              <th className="t-label px-4 py-2">Status</th>
+              <th className="t-label px-4 py-2">Health</th>
+              <th className="t-label px-4 py-2">Open deals</th>
+              <th className="t-label px-4 py-2 text-right">Monthly</th>
+              <th className="t-label px-4 py-2">Owner</th>
+              <th className="t-label px-4 py-2">Last contact</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--line)]">
             {clients.map((c) => (
-              <tr key={c.id} className="transition hover:bg-[var(--blue-50)]">
+              <tr key={c.id} className="transition hover:bg-[var(--accent-50)]">
                 <td className="px-4 py-2">
                   <Link href={`/clients/${c.id}`} className="font-medium hover:underline">
                     {c.name}
@@ -99,6 +99,7 @@ export default async function ClientsPage({
                 </td>
                 <td className="px-4 py-2">
                   <Badge
+                    dot
                     tone={
                       c.status === 'Active' ? 'good' : c.status === 'Churned' ? 'bad' : 'neutral'
                     }
@@ -129,7 +130,7 @@ export default async function ClientsPage({
             ))}
             {clients.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-sm text-[var(--ink-muted)]">
+                <td colSpan={7} className="px-4 py-6 text-center text-[13px] text-[var(--ink-muted)]">
                   No clients match these filters.
                 </td>
               </tr>
@@ -154,13 +155,13 @@ function Filter({
 }) {
   return (
     <label className="block">
-      <span className="block text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">{label}</span>
+      <span className="t-label block">{label}</span>
       <input
         name={name}
         type={type}
         defaultValue={defaultValue ?? ''}
         data-testid={`filter-${name}`}
-        className="mt-1 w-36 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2 py-1 text-sm"
+        className="mt-1 w-36 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2 py-1 text-[13px]"
       />
     </label>
   );
@@ -179,12 +180,12 @@ function Select({
 }) {
   return (
     <label className="block">
-      <span className="block text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">{label}</span>
+      <span className="t-label block">{label}</span>
       <select
         name={name}
         defaultValue={value ?? ''}
         data-testid={`filter-${name}`}
-        className="mt-1 w-36 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2 py-1 text-sm"
+        className="mt-1 w-36 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2 py-1 text-[13px]"
       >
         <option value="">Any</option>
         {options.map(([v, l]) => (

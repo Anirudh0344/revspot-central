@@ -11,7 +11,7 @@ import { ActionForm, input } from './forms';
 function L({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (
     <label className={`block ${full ? 'sm:col-span-2' : ''}`}>
-      <span className="block text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">{label}</span>
+      <span className="t-label block">{label}</span>
       <span className="mt-1 block">{children}</span>
     </label>
   );
@@ -127,7 +127,7 @@ export function LogInteractionForm({
         <L label="Next step due">
           <input type="date" name="next_step_due" className={input} />
         </L>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-[13px]">
           <input type="checkbox" name="apply_next_step" data-testid="apply-next-step" defaultChecked />
           Make this the deal&rsquo;s next step
         </label>

@@ -107,13 +107,42 @@ select convert_pilot('00000000-0000-0000-0000-00000000d001', 6, 250000, current_
 select expect((select count(*) from deals
                where parent_deal_id='00000000-0000-0000-0000-00000000d001' and category='retention')=1,
   'DL-5 conversion creates exactly one retention deal');
-select expect((select stage from deals where parent_deal_id='00000000-0000-0000-0000-00000000d001')='on_term',
-  'DL-5 a 6-month term lands in on_term');
+select expect((select stage from deals where parent_deal_id='00000000-0000-0000-0000-00000000d001')='onboarding',
+  'DL-5 the new retention deal starts in onboarding');
 select expect((select count(*) from tasks
                where deal_id=(select id from deals where parent_deal_id='00000000-0000-0000-0000-00000000d001'))=1,
   'DL-5 conversion creates a kickoff task');
 select expect((select status from client_view where id='00000000-0000-0000-0000-00000000c001')='Active',
   'CL-2 a client with an open retention deal is Active');
+
+\echo '--- DL-13: renewal watch'
+update deals set stage='active' where parent_deal_id='00000000-0000-0000-0000-00000000d001';
+select expect(run_renewal_watch()=0, 'DL-13 a term deal far from its end date is left alone');
+
+update deals set end_date = current_date + 20
+ where parent_deal_id='00000000-0000-0000-0000-00000000d001';
+insert into deals (client_id, title, category, stage, term_months, monthly_value, end_date,
+                   next_step, next_step_due)
+values ('00000000-0000-0000-0000-00000000c001','Monthly enrichment','retention','active',
+        1, 50000, current_date + 10, 'Send this month''s numbers', current_date + 5);
+select expect(run_renewal_watch()=1, 'DL-13 only the term deal nearing its end is picked up');
+select expect((select stage from deals where parent_deal_id='00000000-0000-0000-0000-00000000d001')
+              ='renewal_due', 'DL-13 the term deal moves to renewal due');
+select expect((select stage from deals where title='Monthly enrichment')='active',
+  'DL-13 a month-to-month deal never enters renewal due');
+
+-- Renewing is a move back to Active with new dates, not an exit.
+update deals set stage='active', end_date = current_date + 200
+ where parent_deal_id='00000000-0000-0000-0000-00000000d001';
+select expect((select stage from deals where parent_deal_id='00000000-0000-0000-0000-00000000d001')
+              ='active', 'a renewed deal goes back to active');
+select expect_fail(
+  $$update deals set stage='onboarding'
+     where parent_deal_id='00000000-0000-0000-0000-00000000d001'$$,
+  'Onboarding is only for a new retention deal');
+select expect((select count(*) from stages where key in
+               ('extended','month_to_month','on_term','renewed','idea','validated','trial','won','parked'))=0,
+  'the retired stages are gone from every pipeline');
 
 \echo '--- Module 3: tasks, requests, activity'
 insert into tasks (deal_id, client_id, title, owner, due_date)

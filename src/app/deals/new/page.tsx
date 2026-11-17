@@ -23,8 +23,8 @@ export default async function NewDealPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-lg font-semibold">New deal</h1>
-      <p className="mt-1 text-sm text-[var(--ink-muted)]">
+      <h1 className="text-[18px] font-semibold">New deal</h1>
+      <p className="mt-1 text-[13px] text-[var(--ink-muted)]">
         A live deal always carries a dated next step. Criteria can follow, but the board will not let
         it past kickoff without them.
       </p>

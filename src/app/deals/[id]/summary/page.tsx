@@ -81,7 +81,7 @@ export default async function DealSummary({ params }: { params: Promise<{ id: st
 
   return (
     <div>
-      <h1 className="mb-3 text-lg font-semibold">Deal summary</h1>
+      <h1 className="mb-3 text-[18px] font-semibold">Deal summary</h1>
       <pre
         data-testid="deal-summary"
         className="overflow-x-auto whitespace-pre-wrap rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4 font-mono text-[12px] leading-relaxed"

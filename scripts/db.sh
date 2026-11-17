@@ -19,10 +19,12 @@ case "${1:-}" in
     psql -q -v ON_ERROR_STOP=1 -d "$DB" -f "$HERE/supabase/local-shim.sql"
     migrate
     psql -q -v ON_ERROR_STOP=1 -d "$DB" -f "$HERE/supabase/seed.sql" > /dev/null
-    echo "Database $DB rebuilt and seeded."
+    echo "Database $DB rebuilt. Team profiles only; run npm run db:demo for sample data."
     ;;
   migrate) migrate ;;
-  seed)    psql -q -v ON_ERROR_STOP=1 -d "$DB" -f "$HERE/supabase/seed.sql" > /dev/null; echo "Seeded." ;;
+  seed)    psql -q -v ON_ERROR_STOP=1 -d "$DB" -f "$HERE/supabase/seed.sql" > /dev/null; echo "Team seeded." ;;
+  demo)    psql -q -v ON_ERROR_STOP=1 -d "$DB" -f "$HERE/supabase/seed-demo.sql" > /dev/null; echo "Demo clients and deals loaded." ;;
+  wipe)    psql -q -v ON_ERROR_STOP=1 -d "$DB" -f "$HERE/supabase/tools/wipe-business-data.sql" ;;
   test)
     dropdb --if-exists "${DB}_test"
     createdb "${DB}_test"
@@ -31,5 +33,5 @@ case "${1:-}" in
     psql -q -d "${DB}_test" -f "$HERE/supabase/tests/acceptance.sql" 2>&1 | grep -E '^(ok|FAIL|---)'
     if psql -q -d "${DB}_test" -f "$HERE/supabase/tests/acceptance.sql" 2>&1 | grep -q '^FAIL'; then exit 1; fi
     ;;
-  *) echo "usage: db.sh {reset|migrate|seed|test}"; exit 1 ;;
+  *) echo "usage: db.sh {reset|migrate|seed|demo|wipe|test}"; exit 1 ;;
 esac

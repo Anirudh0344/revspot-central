@@ -124,7 +124,7 @@ export function HandoverForm({
 function L({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (
     <label className={`block ${full ? 'sm:col-span-2' : ''}`}>
-      <span className="block text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">{label}</span>
+      <span className="t-label block">{label}</span>
       <span className="mt-1 block">{children}</span>
     </label>
   );

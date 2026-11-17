@@ -38,10 +38,10 @@ export default async function BotDigestPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-lg font-semibold">
+        <h1 className="text-[18px] font-semibold">
           Bot digest <span className="text-[var(--ink-faint)]">{rows.length} changes today</span>
         </h1>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+        <p className="mt-1 text-[13px] text-[var(--ink-muted)]">
           Every change the bot made since midnight IST. Undo works for seven days.
         </p>
       </div>

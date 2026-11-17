@@ -98,7 +98,7 @@ export function CommandBar() {
         <input
           ref={ref}
           data-testid="command-bar-input"
-          className={`${input} rounded-none border-0 border-b border-[var(--line)] px-4 py-3 text-[15px] focus:border-[var(--line)]`}
+          className={`${input} rounded-none border-0 border-b border-[var(--line)] px-4 py-3 text-[13px] focus:border-[var(--line)]`}
           placeholder="Jump to a client or deal, or run an action…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -116,7 +116,7 @@ export function CommandBar() {
             <li key={h.href + h.label}>
               <button
                 className={`flex w-full items-center gap-3 px-4 py-2 text-left text-[13px] transition ${
-                  i === active ? 'bg-[var(--blue-50)] text-[var(--blue-deep)]' : ''
+                  i === active ? 'bg-[var(--accent-50)] text-[var(--accent-deep)]' : ''
                 }`}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => {
@@ -124,7 +124,7 @@ export function CommandBar() {
                   router.push(h.href);
                 }}
               >
-                <span className="w-12 shrink-0 text-[10px] uppercase tracking-[0.06em] text-[var(--blue-ink)]">
+                <span className="t-label w-12 shrink-0">
                   {h.kind}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{h.label}</span>

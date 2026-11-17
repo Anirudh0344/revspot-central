@@ -6,15 +6,14 @@ import type { Result } from '@/lib/actions';
 import type { Health } from '@/lib/types';
 
 export const input =
-  'w-full rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2.5 py-1.5 text-sm text-[var(--ink)] placeholder:text-[var(--ink-faint)] outline-none transition focus:border-[var(--blue)] focus:ring-2 focus:ring-[var(--blue-100)]';
+  'w-full rounded-[var(--radius-sm)] border border-[var(--line-strong)] bg-[var(--paper)] px-2.5 py-1.5 text-[13px] leading-5 text-[var(--ink)] placeholder:text-[var(--ink-faint)] outline-none transition focus:border-[var(--focus)] focus:ring-2 focus:ring-[var(--accent-100)]';
 export const btn =
-  'inline-flex items-center justify-center gap-1.5 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-3 py-1.5 text-sm font-medium text-[var(--ink)] transition hover:border-[var(--blue-200)] hover:bg-[var(--blue-50)] hover:text-[var(--blue-ink)] disabled:opacity-40';
+  'inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--line-strong)] bg-[var(--paper)] px-2.5 py-[5px] text-[12px] font-medium leading-5 text-[var(--ink)] transition hover:border-[var(--accent-200)] hover:bg-[var(--accent-50)] hover:text-[var(--accent-ink)] disabled:opacity-40';
 export const btnPrimary =
-  'inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--blue)] px-3 py-1.5 text-sm font-medium text-white shadow-[var(--lift-blue)] transition hover:bg-[var(--blue-ink)] disabled:opacity-40';
+  'inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--action)] px-2.5 py-[5px] text-[12px] font-medium leading-5 text-[var(--on-action)] shadow-[var(--lift-accent)] transition hover:bg-[var(--action-hover)] disabled:opacity-40';
 export const btnQuiet =
-  'text-[12px] font-medium text-[var(--blue-ink)] underline-offset-2 transition hover:underline disabled:opacity-40';
-export const label =
-  'block text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--ink-faint)]';
+  'text-[12px] font-medium text-[var(--accent-ink)] underline-offset-2 transition hover:underline disabled:opacity-40';
+export const label = 't-label block';
 
 /** AU-5: every form validates inline with a plain-language error. */
 export function ActionForm({
@@ -87,33 +86,34 @@ export function HealthControl({
   const [pending, start] = useTransition();
   const router = useRouter();
 
-  const colors: Record<Health, string> = {
-    red: 'border-[var(--red)] bg-[var(--red-soft)] text-[var(--red)]',
-    amber: 'border-[var(--amber)] bg-[var(--amber-soft)] text-[var(--amber)]',
-    green: 'border-[var(--green)] bg-[var(--green-soft)] text-[var(--green-ink)]',
+  const picked_: Record<Health, string> = {
+    red: 'bg-[var(--red-dot)] text-white',
+    amber: 'bg-[var(--amber)] text-white',
+    green: 'bg-[var(--green-ink)] text-white',
   };
 
   return (
     <div data-testid="health-control">
-      <div className="flex gap-1.5">
-        {(['red', 'amber', 'green'] as Health[]).map((h) => (
-          <button
-            key={h}
-            type="button"
-            data-testid={`set-health-${h}`}
-            onClick={() => {
-              setPicked(h);
-              setError(null);
-            }}
-            className={`rounded-md border px-2.5 py-1 text-[12px] font-medium capitalize transition ${
-              picked === h || (!picked && current === h)
-                ? colors[h]
-                : 'border-[var(--line-strong)] text-[var(--ink-muted)] hover:bg-[var(--paper-sunk)]'
-            }`}
-          >
-            {h}
-          </button>
-        ))}
+      <div className="inline-flex rounded-[var(--radius-sm)] bg-[var(--paper-sunk)] p-0.5">
+        {(['red', 'amber', 'green'] as Health[]).map((h) => {
+          const on = picked === h || (!picked && current === h);
+          return (
+            <button
+              key={h}
+              type="button"
+              data-testid={`set-health-${h}`}
+              onClick={() => {
+                setPicked(h);
+                setError(null);
+              }}
+              className={`rounded-[4px] px-2.5 py-1 text-[12px] font-medium capitalize leading-5 transition ${
+                on ? picked_[h] : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
+              }`}
+            >
+              {h}
+            </button>
+          );
+        })}
       </div>
       {current && !picked && (
         <p className="mt-2 text-[12px] text-[var(--ink-muted)]">

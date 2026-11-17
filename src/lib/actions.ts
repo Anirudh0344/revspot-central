@@ -478,3 +478,47 @@ export async function createHandoverAction(f: FormData): Promise<Result> {
     return fail(e);
   }
 }
+
+/* ------------------------------------------------- extend a pilot, renew a deal */
+
+/** An extended pilot is a live pilot with a new end date; there is no Extended stage. */
+export async function extendPilotAction(id: string, f: FormData): Promise<Result> {
+  const me = await requireProfile();
+  const endDate = str(f, 'end_date');
+  const reason = str(f, 'reason');
+  if (!endDate) return { ok: false, error: 'New end date is empty.' };
+  if (!reason) return { ok: false, error: 'Extending a pilot needs a reason.' };
+  try {
+    await write(asActor(me), `Pilot extended to ${endDate}: ${reason}`,
+      `update deals set stage = 'live', end_date = $1::date
+        where id = $2 and category = 'pilot'`,
+      [endDate, id]);
+    revalidatePath(`/deals/${id}`);
+    revalidatePath('/deals');
+    return ok(id);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Renewing puts a retention deal back in Active with its new term and dates. */
+export async function renewDealAction(id: string, f: FormData): Promise<Result> {
+  const me = await requireProfile();
+  const endDate = str(f, 'end_date');
+  const reason = str(f, 'reason');
+  if (!endDate) return { ok: false, error: 'New end date is empty.' };
+  if (!reason) return { ok: false, error: 'Renewing a deal needs a reason.' };
+  try {
+    await write(asActor(me), `Renewed to ${endDate}: ${reason}`,
+      `update deals set stage = 'active', end_date = $1::date,
+              term_months = coalesce($2, term_months),
+              monthly_value = coalesce($3, monthly_value)
+        where id = $4 and category = 'retention'`,
+      [endDate, num(f, 'term_months'), num(f, 'monthly_value'), id]);
+    revalidatePath(`/deals/${id}`);
+    revalidatePath('/deals');
+    return ok(id);
+  } catch (e) {
+    return fail(e);
+  }
+}

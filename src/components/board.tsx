@@ -29,12 +29,12 @@ function Column({ stage, deals, children }: { stage: Stage; deals: DealRow[]; ch
       data-testid={`column-${stage.key}`}
       className={`flex w-[272px] shrink-0 flex-col rounded-[var(--radius)] border p-2 transition ${
         isOver
-          ? 'border-[var(--blue)] bg-[var(--blue-100)]'
+          ? 'border-[var(--focus)] bg-[var(--accent-50)]'
           : 'border-[var(--line)] bg-[var(--paper-sunk)]'
       }`}
     >
       <div className="flex items-baseline justify-between gap-2 px-1.5 pb-2 pt-0.5">
-        <h3 className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[var(--blue-deep)]">
+        <h3 className="t-label font-semibold text-[var(--accent-deep)]">
           {stage.label}
         </h3>
         <span className="text-[11px] tabular-nums text-[var(--ink-faint)]">

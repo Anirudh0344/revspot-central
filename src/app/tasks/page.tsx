@@ -41,17 +41,17 @@ export default async function TasksPage({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">
+        <h1 className="text-[18px] font-semibold">
           My work <span className="text-[var(--ink-faint)]">{tasks.length} open</span>
         </h1>
         <form className="flex items-end gap-2">
           <label className="block">
-            <span className="block text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">Owner</span>
+            <span className="t-label block">Owner</span>
             <select
               name="owner"
               defaultValue={owner}
               data-testid="task-owner-filter"
-              className="mt-1 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2 py-1 text-sm"
+              className="mt-1 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2 py-1 text-[13px]"
             >
               {people
                 .filter((p) => p.role !== 'viewer')
@@ -62,7 +62,7 @@ export default async function TasksPage({
                 ))}
             </select>
           </label>
-          <button className="mb-0.5 rounded-md border border-[var(--line-strong)] px-3 py-1.5 text-sm">
+          <button className="mb-0.5 rounded-md border border-[var(--line-strong)] px-3 py-1.5 text-[13px]">
             Show
           </button>
         </form>
@@ -85,18 +85,18 @@ export default async function TasksPage({
             <div className="space-y-4">
               {[...byClient.entries()].map(([client, list]) => (
                 <div key={client}>
-                  <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+                  <p className="t-label">
                     {client}
                   </p>
                   <ul className="mt-1 divide-y divide-[var(--line)]">
                     {list.map((t) => (
                       <li key={t.id} className="flex flex-wrap items-center gap-2 py-2">
-                        <span className="min-w-0 flex-1 text-sm">
+                        <span className="min-w-0 flex-1 text-[13px]">
                           {t.title}
                           {t.deal_id && (
                             <Link
                               href={`/deals/${t.deal_id}`}
-                              className="ml-2 text-[12px] text-[var(--blue-ink)] hover:underline"
+                              className="ml-2 text-[12px] text-[var(--accent-ink)] hover:underline"
                             >
                               {t.deal_title}
                             </Link>

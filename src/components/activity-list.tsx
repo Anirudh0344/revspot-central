@@ -38,7 +38,7 @@ export function ActivityList({
           <li
             key={a.id}
             data-testid={`activity-${a.id}`}
-            className={`rounded-lg border p-2.5 text-sm ${
+            className={`rounded-lg border p-2.5 text-[13px] ${
               a.undone_at
                 ? 'border-[var(--line)] bg-[var(--paper-sunk)] opacity-60'
                 : 'border-[var(--line)]'

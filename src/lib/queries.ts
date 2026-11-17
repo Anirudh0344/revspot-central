@@ -281,6 +281,27 @@ export async function contactsFor(me: Profile, clientId: string) {
   );
 }
 
+/** The people on one deal, decision makers first. */
+export async function contactsForDeal(me: Profile, dealId: string) {
+  return query<{
+    id: string;
+    name: string;
+    title: string | null;
+    email: string | null;
+    role: string;
+    last_contacted_at: string | null;
+  }>(
+    asActor(me),
+    `select c.id, c.name, c.title, c.email, c.role, c.last_contacted_at
+       from deal_contacts dc join contacts c on c.id = dc.contact_id
+      where dc.deal_id = $1 and c.archived_at is null
+      order by case c.role when 'decision_maker' then 0 when 'champion' then 1
+                           when 'day_to_day' then 2 when 'tech' then 3 when 'finance' then 4 else 5 end,
+               c.name`,
+    [dealId],
+  );
+}
+
 export type WorkItem = {
   reason: string;
   deal_id: string;

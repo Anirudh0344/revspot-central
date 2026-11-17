@@ -48,7 +48,7 @@ export default async function ClientPage({
       <header className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4">
         <div className="flex flex-wrap items-center gap-3">
           <HealthDot health={client.health} size={14} />
-          <h1 className="text-lg font-semibold" data-testid="client-name">
+          <h1 className="text-[18px] font-semibold" data-testid="client-name">
             {client.name}
           </h1>
           <Badge tone={client.status === 'Active' ? 'good' : client.status === 'Churned' ? 'bad' : 'neutral'}>
@@ -72,8 +72,8 @@ export default async function ClientPage({
           <Field label="GSTIN">{client.gstin ?? '—'}</Field>
         </dl>
         {client.whitespace_notes && (
-          <div className="mt-4 rounded-lg bg-[var(--paper-sunk)] p-3 text-sm">
-            <p className="text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">Whitespace</p>
+          <div className="mt-4 rounded-lg bg-[var(--paper-sunk)] p-3 text-[13px]">
+            <p className="t-label">Whitespace</p>
             <p className="mt-1">{client.whitespace_notes}</p>
           </div>
         )}
@@ -85,7 +85,7 @@ export default async function ClientPage({
             key={t}
             href={`/clients/${id}?tab=${t}`}
             data-testid={`tab-${t}`}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm capitalize ${
+            className={`-mb-px border-b-2 px-3 py-2 text-[13px] capitalize ${
               tab === t
                 ? 'border-[var(--ink)] font-medium'
                 : 'border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)]'
@@ -113,7 +113,7 @@ export default async function ClientPage({
                 {contacts.map((c) => (
                   <li key={c.id} className="flex flex-wrap items-center gap-3 py-2">
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">
+                      <p className="text-[13px] font-medium">
                         {c.name}
                         {c.title && <span className="ml-2 text-[12px] text-[var(--ink-muted)]">{c.title}</span>}
                       </p>
@@ -122,7 +122,7 @@ export default async function ClientPage({
                       </p>
                     </div>
                     <Badge tone={c.role === 'decision_maker' ? 'brand' : 'neutral'}>
-                      {c.role.replace('_', ' ')}
+                      {c.role.replaceAll('_', ' ')}
                     </Badge>
                     <span className="text-[12px] text-[var(--ink-faint)]">
                       last contacted {istDate(c.last_contacted_at)}
@@ -150,7 +150,7 @@ export default async function ClientPage({
                       {istDateTime(i.occurred_at)} · {i.channel} · {i.direction ?? 'outbound'}
                       {i.logged_by_name ? ` · ${i.logged_by_name}` : ''}
                     </p>
-                    <p className="mt-0.5 text-sm">{i.summary}</p>
+                    <p className="mt-0.5 text-[13px]">{i.summary}</p>
                     {i.next_step && (
                       <p className="mt-0.5 text-[12px] text-[var(--ink-muted)]">
                         Next: {i.next_step}

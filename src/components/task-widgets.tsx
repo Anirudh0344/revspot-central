@@ -77,7 +77,7 @@ export function UndoButton({ activityId, field }: { activityId: string; field?: 
       <button
         type="button"
         data-testid={`undo-${activityId}${field ? '-' + field : ''}`}
-        className="text-[12px] font-medium text-[var(--blue-ink)] underline-offset-2 hover:underline disabled:opacity-50"
+        className="text-[12px] font-medium text-[var(--accent-ink)] underline-offset-2 hover:underline disabled:opacity-50"
         disabled={pending}
         onClick={() =>
           start(async () => {

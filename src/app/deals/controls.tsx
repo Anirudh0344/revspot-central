@@ -28,7 +28,7 @@ export function ViewTabs({
 
   return (
     <div
-      className="inline-flex rounded-[var(--radius)] border border-[var(--line-blue)] bg-[var(--blue-50)] p-0.5"
+      className="inline-flex rounded-[var(--radius)] border border-[var(--line)] bg-[var(--paper-sunk)] p-0.5"
       data-testid="view-tabs"
       role="tablist"
     >
@@ -43,13 +43,13 @@ export function ViewTabs({
             data-testid={`view-${v.key}`}
             className={`inline-flex items-center gap-1.5 rounded-[7px] px-3 py-1.5 text-[13px] transition ${
               active
-                ? 'bg-[var(--blue)] font-medium text-white shadow-[var(--lift-blue)]'
-                : 'text-[var(--ink-muted)] hover:bg-[var(--blue-100)] hover:text-[var(--blue-ink)]'
+                ? 'bg-[var(--accent)] font-medium text-[var(--on-accent)] shadow-[var(--lift-accent)]'
+                : 'text-[var(--ink-muted)] hover:bg-[var(--accent-100)] hover:text-[var(--accent-ink)]'
             }`}
           >
             {v.label}
             <span
-              className={`tabular-nums ${active ? 'text-[var(--blue-200)]' : 'text-[var(--ink-faint)]'}`}
+              className={`tabular-nums ${active ? 'text-[var(--on-accent)] opacity-60' : 'text-[var(--ink-faint)]'}`}
             >
               {counts[v.key] ?? 0}
             </span>
@@ -66,7 +66,6 @@ type FilterValues = {
   product?: string;
   client?: string;
   q?: string;
-  closed?: string;
   view: string;
 };
 
@@ -74,17 +73,15 @@ export function Filters({
   people,
   clients,
   values,
-  showClosed,
 }: {
   people: { id: string; name: string }[];
   clients: { id: string; name: string }[];
   values: FilterValues;
-  showClosed: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(
-    Boolean(values.health || values.intern || values.product || values.client || values.closed),
+    Boolean(values.health || values.intern || values.product || values.client),
   );
 
   const active = [values.q, values.health, values.intern, values.product, values.client].filter(
@@ -119,12 +116,12 @@ export function Filters({
           type="button"
           onClick={() => setOpen((o) => !o)}
           data-testid="toggle-filters"
-          className="rounded-md px-2 py-1.5 text-[12px] font-medium text-[var(--ink-muted)] transition hover:bg-[var(--blue-100)] hover:text-[var(--blue-ink)]"
+          className="rounded-md px-2 py-1.5 text-[12px] font-medium text-[var(--ink-muted)] transition hover:bg-[var(--accent-100)] hover:text-[var(--accent-ink)]"
           aria-expanded={open}
         >
           Filters
           {active > 0 && (
-            <span className="ml-1.5 rounded bg-[var(--blue-100)] px-1 text-[11px] tabular-nums text-[var(--blue-ink)]">
+            <span className="ml-1.5 rounded bg-[var(--accent-100)] px-1 text-[11px] tabular-nums text-[var(--accent-ink)]">
               {active}
             </span>
           )}
@@ -171,12 +168,6 @@ export function Filters({
                 className={`${input} mt-1`}
               />
             </label>
-            {showClosed && (
-              <label className="flex items-center gap-1.5 pb-2 text-[12px] text-[var(--ink-muted)]">
-                <input type="checkbox" name="closed" defaultChecked={values.closed === 'on'} />
-                Include closed
-              </label>
-            )}
             <button className={btn}>Apply</button>
           </div>
         )}

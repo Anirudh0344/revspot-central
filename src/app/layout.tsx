@@ -22,7 +22,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Link href="/deals" className="flex items-center gap-2 text-[13px] font-semibold tracking-tight">
               <span
                 aria-hidden
-                className="inline-block h-[18px] w-[18px] rounded-[5px] bg-[var(--blue)] shadow-[var(--lift-blue)]"
+                className="inline-block h-[18px] w-[18px] rounded-[5px] bg-[var(--accent)] shadow-[var(--lift-accent)]"
               />
               <span>
                 Revspot{' '}
@@ -31,7 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </Link>
             {me && <Nav />}
             <div className="ml-auto flex items-center gap-3">
-              <kbd className="hidden rounded border border-[var(--line-blue)] bg-[var(--blue-50)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--blue-ink)] sm:inline">
+              <kbd className="hidden rounded border border-[var(--line)] bg-[var(--paper-sunk)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--ink-faint)] sm:inline">
                 ⌘K
               </kbd>
               {me && (
@@ -41,7 +41,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   </span>
                   <Badge tone={me.role === 'intern' ? 'neutral' : 'brand'}>{me.role}</Badge>
                   <form action={signOut}>
-                    <button className="text-[12px] text-[var(--ink-faint)] underline-offset-2 transition hover:text-[var(--blue-ink)] hover:underline">
+                    <button className="text-[12px] text-[var(--ink-faint)] underline-offset-2 transition hover:text-[var(--accent-ink)] hover:underline">
                       Sign out
                     </button>
                   </form>

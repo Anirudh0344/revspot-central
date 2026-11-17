@@ -24,8 +24,8 @@ export function Nav() {
             data-testid={`nav-${n.label.toLowerCase().replace(/\s+/g, '-')}`}
             className={`rounded-md px-2.5 py-1 text-[13px] transition ${
               active
-                ? 'bg-[var(--blue-100)] font-medium text-[var(--blue-deep)]'
-                : 'text-[var(--ink-muted)] hover:bg-[var(--blue-50)] hover:text-[var(--blue-ink)]'
+                ? 'bg-[var(--accent-100)] font-medium text-[var(--accent-deep)]'
+                : 'text-[var(--ink-muted)] hover:bg-[var(--accent-50)] hover:text-[var(--accent-ink)]'
             }`}
           >
             {n.label}

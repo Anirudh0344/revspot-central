@@ -10,10 +10,10 @@ import {
   profiles,
   stages,
   tasksFor,
-  contactsFor,
+  contactsForDeal,
 } from '@/lib/queries';
 import { inr, istDate, istDateTime, relativeDue } from '@/lib/format';
-import { Badge, Card, Empty, Field, HealthDot } from '@/components/ui';
+import { Badge, Card, CategoryTag, Code, Empty, Field, HealthDot, TermTag } from '@/components/ui';
 import { ActivityList } from '@/components/activity-list';
 import { CompleteTask } from '@/components/task-widgets';
 import { AddLineItemForm, AddTaskForm, LogInteractionForm } from '@/components/client-forms';
@@ -37,7 +37,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
       interactionsFor(me, { dealId: deal.id, limit: 8 }),
       activityFor(me, { dealId: deal.id, limit: 30 }),
       profiles(me),
-      contactsFor(me, deal.client_id),
+      contactsForDeal(me, deal.id),
     ]);
 
   return (
@@ -46,16 +46,24 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
       <header className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4">
         <div className="flex flex-wrap items-center gap-2">
           <HealthDot health={deal.health} size={14} />
-          <Link href={`/clients/${deal.client_id}`} className="text-sm text-[var(--ink-muted)] hover:underline">
+          <Link href={`/clients/${deal.client_id}`} className="text-[13px] text-[var(--ink-muted)] hover:underline">
             {deal.client_name}
           </Link>
           <span className="text-[var(--line-strong)]">/</span>
-          <h1 className="text-lg font-semibold" data-testid="deal-title">
+          <h1
+            className="text-[18px] font-semibold tracking-[-0.01em]"
+            data-testid="deal-title"
+          >
             {deal.title}
           </h1>
-          {deal.code && <Badge tone="brand" testId="deal-code">{deal.code}</Badge>}
-          <Badge tone="brand">{deal.category}</Badge>
-          <Badge>{deal.stage_label}</Badge>
+          {deal.code && (
+            <span data-testid="deal-code">
+              <Code>{deal.code}</Code>
+            </span>
+          )}
+          <CategoryTag category={deal.category} />
+          <Badge dot>{deal.stage_label}</Badge>
+          {deal.category === 'retention' && <TermTag months={deal.term_months} />}
           {!deal.criteria_complete && (
             <Badge tone="warn" testId="criteria-incomplete">Criteria incomplete</Badge>
           )}
@@ -71,7 +79,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                 href={deal.context_doc_url}
                 target="_blank"
                 rel="noreferrer"
-                className="text-[12px] text-[var(--blue-ink)] hover:underline"
+                className="text-[12px] text-[var(--accent-ink)] hover:underline"
                 data-testid="context-doc"
               >
                 Context doc ↗
@@ -79,14 +87,14 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             )}
             <Link
               href={`/deals/${deal.id}/summary`}
-              className="text-[12px] text-[var(--blue-ink)] hover:underline"
+              className="text-[12px] text-[var(--accent-ink)] hover:underline"
               data-testid="summary-link"
             >
               Plain summary
             </Link>
           </div>
         </div>
-        <dl className="mt-4 grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <dl className="mt-3.5 grid gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
           <Field label="Owner">{deal.intern_owner_name ?? 'Unassigned'}</Field>
           <Field label="Product">{deal.product ?? '—'}</Field>
           <Field label="Term">{deal.term_months ? `${deal.term_months} months` : '—'}</Field>
@@ -111,8 +119,8 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             {items.length === 0 ? (
               <Empty>No line items yet.</Empty>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="text-left text-[12px] uppercase tracking-wide text-[var(--ink-muted)]">
+              <table className="w-full text-[13px]">
+                <thead className="t-label text-left">
                   <tr>
                     <th className="pb-1 font-medium">Description</th>
                     <th className="pb-1 text-right font-medium">Qty</th>
@@ -163,13 +171,17 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
               {contacts.map((c) => (
                 <li
                   key={c.id}
-                  className="rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-sm"
+                  className="rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-[13px]"
                 >
                   {c.name}
-                  <span className="ml-1.5 text-[12px] text-[var(--ink-muted)]">{c.role.replace('_', ' ')}</span>
+                  <span className="ml-1.5 text-[12px] text-[var(--ink-muted)]">{c.role.replaceAll('_', ' ')}</span>
                 </li>
               ))}
-              {contacts.length === 0 && <Empty>No contacts on this client.</Empty>}
+              {contacts.length === 0 && (
+                <Empty>
+                  No one linked to this deal yet. The client&rsquo;s contacts are on its page.
+                </Empty>
+              )}
             </ul>
           </Card>
 
@@ -202,7 +214,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           <Card title="Next step" testId="panel-next-step">
             {deal.next_step ? (
               <>
-                <p className="text-sm">{deal.next_step}</p>
+                <p className="text-[13px]">{deal.next_step}</p>
                 <p
                   className={`mt-1 text-[12px] ${deal.next_step_overdue ? 'font-semibold text-[var(--red)]' : 'text-[var(--ink-muted)]'}`}
                 >
@@ -218,7 +230,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             <ul className="divide-y divide-[var(--line)]">
               {tasks.map((t) => (
                 <li key={t.id} className="flex items-center gap-2 py-2">
-                  <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
+                  <span className="min-w-0 flex-1 truncate text-[13px]">{t.title}</span>
                   <span className="shrink-0 text-[12px] text-[var(--ink-muted)]">{relativeDue(t.due_date)}</span>
                   <CompleteTask taskId={t.id} dealId={deal.id} />
                 </li>
@@ -237,7 +249,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                   <p className="text-[12px] text-[var(--ink-muted)]">
                     {istDateTime(i.occurred_at)} · {i.channel}
                   </p>
-                  <p className="text-sm">{i.summary}</p>
+                  <p className="text-[13px]">{i.summary}</p>
                 </li>
               ))}
               {interactions.length === 0 && <Empty>Nothing logged yet.</Empty>}

@@ -37,10 +37,10 @@ export default async function BotQueuePage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">
+        <h1 className="text-[18px] font-semibold">
           Bot work queue <span className="text-[var(--ink-faint)]">{items.length} items</span>
         </h1>
-        <Link href="/bot/digest" className="text-sm text-[var(--blue-ink)] hover:underline">
+        <Link href="/bot/digest" className="text-[13px] text-[var(--accent-ink)] hover:underline">
           Today&rsquo;s bot digest
         </Link>
       </div>
@@ -63,13 +63,13 @@ export default async function BotQueuePage() {
             {list.map((i) => (
               <li key={`${i.deal_id}-${reason}`} className="flex flex-wrap items-center gap-2 py-2">
                 <Badge tone={LABEL[reason]?.tone ?? 'neutral'}>{reason.replace(/_/g, ' ')}</Badge>
-                <Link href={`/deals/${i.deal_id}`} className="min-w-0 flex-1 truncate text-sm hover:underline">
+                <Link href={`/deals/${i.deal_id}`} className="min-w-0 flex-1 truncate text-[13px] hover:underline">
                   {i.client_name} · {i.title}
                 </Link>
                 {i.code && <Badge tone="brand">{i.code}</Badge>}
                 <Link
                   href={`/deals/${i.deal_id}/summary`}
-                  className="text-[12px] text-[var(--blue-ink)] hover:underline"
+                  className="text-[12px] text-[var(--accent-ink)] hover:underline"
                 >
                   summary
                 </Link>

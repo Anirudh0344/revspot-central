@@ -4,7 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
   convertPilotAction,
+  extendPilotAction,
   moveStageAction,
+  renewDealAction,
   setHealthAction,
   updateDealAction,
 } from '@/lib/actions';
@@ -22,12 +24,31 @@ export function DealControls({ deal, stages }: { deal: DealRow; stages: Stage[] 
         setHealth={setHealthAction}
       />
       <div className="border-t border-[var(--line)] pt-3">
-        <MoveToMenu dealId={deal.id} stages={stages} current={deal.stage} move={moveStageAction} />
+        <MoveToMenu
+          dealId={deal.id}
+          stages={stages.filter((st) => !(deal.category === 'retention' && st.key === 'onboarding'))}
+          current={deal.stage}
+          move={moveStageAction}
+        />
       </div>
       {deal.category === 'pilot' && !deal.stage_is_terminal && (
         <div className="border-t border-[var(--line)] pt-3">
-          <Disclosure label="Convert to a paid retention deal" testId="convert-pilot">
-            <ConvertPilotForm deal={deal} />
+          <div className="flex flex-wrap gap-2">
+            <Disclosure label="Convert to retention" testId="convert-pilot">
+              <ConvertPilotForm deal={deal} />
+            </Disclosure>
+            {['live', 'readout'].includes(deal.stage) && (
+              <Disclosure label="Extend pilot" testId="extend-pilot">
+                <ExtendPilotForm deal={deal} />
+              </Disclosure>
+            )}
+          </div>
+        </div>
+      )}
+      {deal.category === 'retention' && !deal.stage_is_terminal && (
+        <div className="border-t border-[var(--line)] pt-3">
+          <Disclosure label="Renew" testId="renew-deal">
+            <RenewForm deal={deal} />
           </Disclosure>
         </div>
       )}
@@ -86,6 +107,62 @@ function ConvertPilotForm({ deal }: { deal: DealRow }) {
   );
 }
 
+/** Extending keeps the pilot in Live with a new end date; the reason is logged. */
+function ExtendPilotForm({ deal }: { deal: DealRow }) {
+  return (
+    <ActionForm
+      testId="extend-pilot-form"
+      submitLabel="Extend"
+      action={(f) => extendPilotAction(deal.id, f)}
+    >
+      <div className="grid gap-3">
+        <Label text="New end date">
+          <input name="end_date" type="date" className={input} data-testid="extend-end-date" />
+        </Label>
+        <Label text="Reason (required)">
+          <input name="reason" className={input} data-testid="extend-reason" />
+        </Label>
+      </div>
+    </ActionForm>
+  );
+}
+
+/** Renewing returns the deal to Active with its new term and dates. */
+function RenewForm({ deal }: { deal: DealRow }) {
+  return (
+    <ActionForm testId="renew-form" submitLabel="Renew" action={(f) => renewDealAction(deal.id, f)}>
+      <div className="grid gap-3">
+        <Label text="Term (months)">
+          <input
+            name="term_months"
+            type="number"
+            min={1}
+            defaultValue={deal.term_months ?? ''}
+            className={input}
+            data-testid="renew-term"
+          />
+        </Label>
+        <Label text="Monthly value (₹)">
+          <input
+            name="monthly_value"
+            type="number"
+            step="0.01"
+            defaultValue={deal.monthly_value ?? ''}
+            className={input}
+            data-testid="renew-value"
+          />
+        </Label>
+        <Label text="New end date">
+          <input name="end_date" type="date" className={input} data-testid="renew-end-date" />
+        </Label>
+        <Label text="Reason (required)">
+          <input name="reason" className={input} data-testid="renew-reason" />
+        </Label>
+      </div>
+    </ActionForm>
+  );
+}
+
 /** DL-8: the six criteria fields, editable in place. */
 export function CriteriaPanel({ deal }: { deal: DealRow }) {
   const [editing, setEditing] = useState(false);
@@ -97,8 +174,8 @@ export function CriteriaPanel({ deal }: { deal: DealRow }) {
             const v = deal[f.key] as string | null;
             return (
               <div key={f.key} data-testid={`criteria-${f.key}`}>
-                <dt className="text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">{f.label}</dt>
-                <dd className={`mt-0.5 text-sm ${v ? '' : 'text-[var(--red)]'}`}>
+                <dt className="t-label">{f.label}</dt>
+                <dd className={`mt-0.5 text-[13px] ${v ? '' : 'text-[var(--red)]'}`}>
                   {v || `${f.label} is empty`}
                 </dd>
               </div>
@@ -281,8 +358,8 @@ export function SnapshotEditor({
 function Static({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">{label}</dt>
-      <dd className="mt-0.5 break-words text-sm">{value || '—'}</dd>
+      <dt className="t-label">{label}</dt>
+      <dd className="mt-0.5 break-words text-[13px]">{value || '—'}</dd>
     </div>
   );
 }
@@ -290,7 +367,7 @@ function Static({ label, value }: { label: string; value: string | null }) {
 function Label({ text, hint, children }: { text: string; hint?: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">{text}</span>
+      <span className="t-label block">{text}</span>
       {hint && <span className="block text-[11px] text-[var(--ink-faint)]">{hint}</span>}
       <span className="mt-1 block">{children}</span>
     </label>

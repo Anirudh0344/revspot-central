@@ -6,8 +6,8 @@ import type { DealRow, Health } from '@/lib/types';
 /* ------------------------------------------------------------------ health */
 
 const HEALTH_DOT: Record<string, string> = {
-  red: 'bg-[var(--red)]',
-  amber: 'bg-[var(--amber)]',
+  red: 'bg-[var(--red-dot)]',
+  amber: 'bg-[var(--amber-dot)]',
   green: 'bg-[var(--green)]',
   none: 'bg-[var(--line-strong)]',
 };
@@ -27,37 +27,50 @@ export function HealthDot({ health, size = 8 }: { health: Health | null; size?: 
 
 type Tone = 'neutral' | 'brand' | 'good' | 'warn' | 'bad';
 
+/*
+  Soft fill, no outline. Most tags are grey; colour is kept for the three things
+  that need it: healthy, warning and bad. `dot` turns a tag into a status chip.
+*/
 const TONES: Record<Tone, string> = {
-  neutral: 'bg-[var(--paper-blue)] text-[var(--ink-muted)] ring-[var(--line)]',
-  brand: 'bg-[var(--blue-100)] text-[var(--blue-deep)] ring-[var(--blue-200)]',
-  good: 'bg-[var(--green-soft)] text-[var(--green-ink)] ring-[color-mix(in_srgb,var(--green)_20%,white)]',
-  warn: 'bg-[var(--amber-soft)] text-[var(--amber)] ring-[color-mix(in_srgb,var(--amber)_22%,white)]',
-  bad: 'bg-[var(--red-soft)] text-[var(--red)] ring-[color-mix(in_srgb,var(--red)_18%,white)]',
+  neutral: 'bg-[var(--tag-bg)] text-[var(--ink-muted)]',
+  brand: 'bg-[var(--tag-bg)] text-[var(--ink)]',
+  good: 'bg-[var(--green-soft)] text-[var(--green-ink)]',
+  warn: 'bg-[var(--amber-soft)] text-[var(--amber)]',
+  bad: 'bg-[var(--red-soft)] text-[var(--red)]',
 };
 
 export function Badge({
   children,
   tone = 'neutral',
+  dot,
   testId,
 }: {
   children: ReactNode;
   tone?: Tone;
+  dot?: boolean;
   testId?: string;
 }) {
   return (
-    <span
-      data-testid={testId}
-      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-4 ring-1 ring-inset ${TONES[tone]}`}
-    >
+    <span data-testid={testId} className={`tag ${TONES[tone]}`}>
+      {dot && <span className="tag-dot" aria-hidden />}
       {children}
     </span>
   );
 }
 
-/** A deal code: monospaced, quiet, always the same shape. */
+/** Which pipeline a deal is in. */
+export function CategoryTag({ category }: { category: 'pilot' | 'retention' | 'expansion' }) {
+  return (
+    <Badge>
+      <span className="capitalize">{category}</span>
+    </Badge>
+  );
+}
+
+/** A deal code. Plain muted mono — a reference, not a label. */
 export function Code({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded border border-[var(--line)] bg-[var(--paper-sunk)] px-1 py-px font-mono text-[10px] uppercase tracking-wide text-[var(--ink-muted)]">
+    <span className="font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--ink-faint)]">
       {children}
     </span>
   );
@@ -83,24 +96,24 @@ export function Card({
       data-testid={testId}
       className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--paper)]"
     >
-      <header className="flex items-center justify-between gap-3 rounded-t-[var(--radius)] border-b border-[var(--line)] bg-[var(--paper-blue)] px-4 py-2.5">
-        <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight">
+      <header className="flex items-center justify-between gap-3 rounded-t-[var(--radius)] border-b border-[var(--line)] bg-[var(--paper-tint)] px-3.5 py-2">
+        <h2 className="flex items-center gap-1.5 text-[13px] font-semibold tracking-[-0.005em]">
           {title}
           {count !== undefined && (
-            <span className="rounded bg-[var(--blue-100)] px-1.5 text-[11px] font-normal tabular-nums text-[var(--blue-ink)]">
+            <span className="rounded bg-[var(--tag-bg)] px-1 text-[11px] font-normal tabular-nums text-[var(--ink-muted)]">
               {count}
             </span>
           )}
         </h2>
         {action}
       </header>
-      <div className="p-4">{children}</div>
+      <div className="p-3.5">{children}</div>
     </section>
   );
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="py-2 text-sm text-[var(--ink-faint)]">{children}</p>;
+  return <p className="py-2 text-[13px] text-[var(--ink-faint)]">{children}</p>;
 }
 
 export function Owner({ name }: { name: string | null }) {
@@ -108,7 +121,7 @@ export function Owner({ name }: { name: string | null }) {
   return (
     <span
       title={name}
-      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--paper-sunk)] text-[10px] font-semibold text-[var(--ink-muted)] ring-1 ring-inset ring-[var(--line)]"
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--paper-sunk)] text-[11px] font-semibold text-[var(--ink-muted)] ring-1 ring-inset ring-[var(--line)]"
     >
       {initials(name)}
     </span>
@@ -130,11 +143,18 @@ export function DueDate({ date, terminal }: { date: string | null; terminal?: bo
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <dt className="text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--ink-faint)]">
-        {label}
-      </dt>
-      <dd className="mt-0.5 text-sm text-[var(--ink)]">{children ?? '—'}</dd>
+      <dt className="t-label">{label}</dt>
+      <dd className="mt-1 text-[13px] text-[var(--ink)]">{children ?? '—'}</dd>
     </div>
+  );
+}
+
+/** The contract a retention deal is on. A fact about the deal, not a stage. */
+export function TermTag({ months }: { months: number | null }) {
+  return months && months >= 3 ? (
+    <Badge tone="brand">{months}-month term</Badge>
+  ) : (
+    <Badge>Month to month</Badge>
   );
 }
 
@@ -144,9 +164,9 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 export function DealCard({ deal, compact }: { deal: DealRow; compact?: boolean }) {
   const edge =
     deal.health === 'red'
-      ? 'before:bg-[var(--red)]'
+      ? 'before:bg-[var(--red-dot)]'
       : deal.health === 'amber'
-        ? 'before:bg-[var(--amber)]'
+        ? 'before:bg-[var(--amber-dot)]'
         : deal.health === 'green'
           ? 'before:bg-[var(--green)]'
           : 'before:bg-[var(--line-strong)]';
@@ -157,7 +177,7 @@ export function DealCard({ deal, compact }: { deal: DealRow; compact?: boolean }
       data-testid={`deal-card-${deal.id}`}
       className={`relative block overflow-hidden rounded-[var(--radius)] border border-[var(--line)] bg-[var(--paper)] p-3 pl-3.5 transition
         before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:content-[''] ${edge}
-        hover:border-[var(--blue-200)] hover:bg-[var(--blue-50)] hover:shadow-[var(--lift)]`}
+        hover:border-[var(--accent-200)] hover:bg-[var(--accent-50)] hover:shadow-[var(--lift)]`}
     >
       <p className="truncate text-[11px] text-[var(--ink-muted)]">{deal.client_name}</p>
       <p className="mt-0.5 truncate text-[13px] font-medium leading-snug">{deal.title}</p>
@@ -179,9 +199,10 @@ export function DealCard({ deal, compact }: { deal: DealRow; compact?: boolean }
             </span>
           </div>
 
-          {(!deal.criteria_complete || deal.health_stale || deal.code) && (
+          {(!deal.criteria_complete || deal.health_stale || deal.code || deal.category === 'retention') && (
             <div className="mt-2 flex flex-wrap items-center gap-1">
               {deal.code && <Code>{deal.code}</Code>}
+              {deal.category === 'retention' && <TermTag months={deal.term_months} />}
               {!deal.criteria_complete && <Badge tone="warn">Criteria incomplete</Badge>}
               {deal.health_stale && <Badge>Health stale</Badge>}
             </div>

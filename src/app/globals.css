@@ -1,71 +1,74 @@
 @import "tailwindcss";
 
 /*
-  One restricted palette. Blue carries the product: chrome, actions, structure.
-  Grey carries the text. Green means healthy. Red and amber appear only as
-  health signals, never as decoration.
+  Tokens are named for their role, not their colour, so a palette is one block
+  of values and no component changes when it does.
+
+  Three roles carry colour:
+    action  — primary buttons
+    accent  — the highlight: what is selected, where you are
+    health  — green, amber, red; these mean health and warnings and nothing else
 */
+
+/* ------------------------------------------------------------------ shared */
 :root {
-  /* paper */
   --paper: #ffffff;
-  --paper-sunk: #f7f9fc;  /* filter bars, board columns */
-  --paper-blue: #f4f8ff;  /* table heads, card headers, tinted rows */
 
-  /* ink — cool greys, faintly blue so nothing clashes with the accent */
-  --ink: #0d1b2e;
-  --ink-muted: #5a6b82;
-  --ink-faint: #8a99ad;
+  /* health and warnings only; the same in every palette */
+  --green: #30a46c;
+  --green-soft: #e6f6eb;
+  --green-ink: #218358;
+  --amber: #ab6400;
+  --amber-soft: #fef3dd;
+  --amber-dot: #e2a336;
+  --red: #ce2c31;
+  --red-soft: #feebec;
+  --red-dot: #e5484d;
 
-  /* lines */
-  --line: #e3eaf3;
-  --line-strong: #cbd7e6;
-  --line-blue: #c7dbff;
-
-  /* the blue ramp */
-  --blue-50: #f4f8ff;
-  --blue-100: #e4eeff;
-  --blue-200: #c7dbff;
-  --blue-400: #5b8def;
-  --blue: #2563eb;
-  --blue-ink: #1b4fc4;
-  --blue-deep: #16307a;
-
-  /* healthy */
-  --green: #0f9d6e;
-  --green-soft: #e9f9f2;
-  --green-ink: #0a6f4e;
-
-  /* health only, deliberately desaturated so a board does not shout */
-  --amber: #b4790d;
-  --amber-soft: #fdf6e8;
-  --red: #d64545;
-  --red-soft: #fdf1f1;
+  /* One type scale. Four steps, nothing in between.
+     11 label · 12 meta · 13 body · 18 title */
+  --t-label: 11px;
+  --t-meta: 12px;
+  --t-body: 13px;
+  --t-title: 18px;
 
   --radius: 10px;
-  --ring: 0 0 0 1px var(--line);
-  --lift: 0 1px 2px rgba(13, 27, 46, 0.06);
-  --lift-blue: 0 1px 2px rgba(37, 99, 235, 0.14);
+  --radius-sm: 6px;
+}
+
+/* ---------------------------------------------------------------- palette
+   Clay: warm paper tones with a single terracotta. */
+:root {
+  --paper-sunk: #faf8f5;
+  --paper-tint: #faf8f5;
+  --ink: #2a2522;
+  --ink-muted: #6b635d;
+  --ink-faint: #978e87;
+  --line: #ebe6e0;
+  --line-strong: #dcd5cc;
+  --tag-bg: #f3efea;
+
+  --action: #c2562d;
+  --action-hover: #a8451f;
+  --on-action: #ffffff;
+
+  --accent: #c2562d;
+  --on-accent: #ffffff;
+  --accent-50: #fdf6f2;
+  --accent-100: #fbe9e0;
+  --accent-200: #f0c3ad;
+  --accent-ink: #a8451f;
+  --accent-deep: #5c2410;
+  --focus: #c2562d;
+
+  --lift: 0 1px 2px rgba(42, 37, 34, 0.06);
+  --lift-accent: 0 1px 2px rgba(194, 86, 45, 0.22);
 }
 
 @theme inline {
   --color-paper: var(--paper);
-  --color-paper-sunk: var(--paper-sunk);
-  --color-paper-blue: var(--paper-blue);
   --color-ink: var(--ink);
-  --color-ink-muted: var(--ink-muted);
-  --color-ink-faint: var(--ink-faint);
   --color-line: var(--line);
-  --color-line-strong: var(--line-strong);
-  --color-brand: var(--blue);
-  --color-brand-soft: var(--blue-100);
-  --color-brand-ink: var(--blue-ink);
-  --color-good: var(--green);
-  --color-good-soft: var(--green-soft);
-  --color-good-ink: var(--green-ink);
-  --color-warn: var(--amber);
-  --color-warn-soft: var(--amber-soft);
-  --color-bad: var(--red);
-  --color-bad-soft: var(--red-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -78,6 +81,8 @@ html {
 body {
   background: var(--paper);
   color: var(--ink);
+  font-size: var(--t-body);
+  line-height: 1.45;
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -85,12 +90,12 @@ body {
 }
 
 ::selection {
-  background: var(--blue-100);
-  color: var(--blue-deep);
+  background: var(--accent-100);
+  color: var(--accent-deep);
 }
 
 *:focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
   border-radius: 4px;
 }
@@ -102,10 +107,40 @@ button {
   font: inherit;
 }
 
-/* A thin blue rule under the app header, so the chrome reads as one band. */
+/* Field labels: one treatment everywhere. */
+.t-label {
+  font-size: var(--t-label);
+  line-height: 15px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* Tags. Soft fill, no outline. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  font-size: var(--t-label);
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.tag-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  flex: none;
+}
+
+/* The app header: plain white over a hairline. */
 .app-header {
-  background: linear-gradient(to bottom, var(--blue-50), var(--paper));
-  border-bottom: 1px solid var(--line-blue);
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  border-bottom: 1px solid var(--line);
 }
 
 .scroll-x {
