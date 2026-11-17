@@ -41,12 +41,17 @@ export function ActionForm({
     <form
       data-testid={testId}
       className={className}
-      action={(formData) => {
+      // onSubmit rather than `action`: React resets a form after an action runs,
+      // which would wipe what the person typed whenever the save is refused.
+      onSubmit={(e) => {
+        e.preventDefault();
+        const form = e.currentTarget;
+        const formData = new FormData(form);
         start(async () => {
           const res = await action(formData);
           if (res.ok) {
             setError(null);
-            if (resetOnSuccess) (document.querySelector(`[data-testid="${testId}"]`) as HTMLFormElement | null)?.reset();
+            if (resetOnSuccess !== false) form.reset();
             router.refresh();
             onDone?.();
           } else {

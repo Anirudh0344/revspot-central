@@ -13,11 +13,14 @@ import { inr, istDate, istDateTime } from '@/lib/format';
 import { Badge, Card, DealCard, Empty, Field, HealthDot } from '@/components/ui';
 import { ActivityList } from '@/components/activity-list';
 import { AddContactForm, LogInteractionForm } from '@/components/client-forms';
-import { btn } from '@/components/forms';
+import { btn, Disclosure } from '@/components/forms';
+import { billingAccountsFor, billsForClient, clientBilling } from '@/lib/billing';
+import { BillList } from '@/components/billing-view';
+import { AddBillingAccountForm } from '@/components/billing';
 
 export const dynamic = 'force-dynamic';
 
-const TABS = ['deals', 'contacts', 'interactions', 'activity'] as const;
+const TABS = ['deals', 'billing', 'contacts', 'interactions', 'activity'] as const;
 
 export default async function ClientPage({
   params,
@@ -35,12 +38,15 @@ export default async function ClientPage({
   const client = await clientById(me, id);
   if (!client) notFound();
 
-  const [deals, contacts, interactions, activity, people] = await Promise.all([
+  const [deals, contacts, interactions, activity, people, billing, bills, accounts] = await Promise.all([
     dealList(me, { client: id, includeTerminal: true }),
     contactsFor(me, id),
     interactionsFor(me, { clientId: id, limit: 25 }),
     activityFor(me, { clientId: id, limit: 40 }),
     profiles(me),
+    clientBilling(me, id),
+    billsForClient(me, id),
+    billingAccountsFor(me, id),
   ]);
 
   return (
@@ -71,6 +77,28 @@ export default async function ClientPage({
           <Field label="Legal name">{client.legal_name ?? '—'}</Field>
           <Field label="GSTIN">{client.gstin ?? '—'}</Field>
         </dl>
+        {billing && (
+          <dl
+            className="mt-4 grid gap-4 border-t border-[var(--line)] pt-4 sm:grid-cols-4"
+            data-testid="client-billing-summary"
+          >
+            <Field label="Invoices raised">{billing.bills_raised}</Field>
+            <Field label="Due">
+              {billing.bills_due} · {inr(billing.due_amount)}
+            </Field>
+            <Field label="Overdue">
+              <span className={billing.bills_overdue > 0 ? 'font-medium text-[var(--red)]' : ''}>
+                {billing.bills_overdue} · {inr(billing.overdue_amount)}
+              </span>
+            </Field>
+            <Field label="Live deals invoiced">
+              {billing.deals_invoiced} of {billing.deals_invoiced + billing.deals_not_invoiced}
+              {billing.deals_not_invoiced > 0 && (
+                <span className="ml-1 text-[var(--amber)]">· {billing.deals_not_invoiced} not invoiced</span>
+              )}
+            </Field>
+          </dl>
+        )}
         {client.whitespace_notes && (
           <div className="mt-4 rounded-lg bg-[var(--paper-sunk)] p-3 text-[13px]">
             <p className="t-label">Whitespace</p>
@@ -102,6 +130,48 @@ export default async function ClientPage({
             <DealCard key={d.id} deal={d} />
           ))}
           {deals.length === 0 && <Empty>No deals yet.</Empty>}
+        </div>
+      )}
+
+      {tab === 'billing' && (
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <Card title="Bills" count={bills.length}>
+              {bills.length === 0 ? (
+                <Empty>No PIs raised for this client yet. Add one from the deal it bills.</Empty>
+              ) : (
+                <BillList bills={bills} showDeal />
+              )}
+            </Card>
+          </div>
+          <div className="space-y-5">
+            <Card title="Bill-to parties" count={accounts.length}>
+              {accounts.length === 0 ? (
+                <Empty>None yet. Without one, reminders go to the client&apos;s finance contacts.</Empty>
+              ) : (
+                <ul className="space-y-3">
+                  {accounts.map((a) => (
+                    <li key={a.id} className="text-[13px]">
+                      <p className="flex items-center gap-2 font-medium">
+                        {a.name}
+                        {a.is_intermediary && <Badge>Agency</Badge>}
+                      </p>
+                      <p className="text-[12px] text-[var(--ink-muted)]">{a.to_emails.join(', ')}</p>
+                      {a.cc_emails.length > 0 && (
+                        <p className="text-[12px] text-[var(--ink-faint)]">cc {a.cc_emails.join(', ')}</p>
+                      )}
+                      {a.gstin && <p className="text-[12px] text-[var(--ink-faint)]">GSTIN {a.gstin}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-4 border-t border-[var(--line)] pt-3">
+                <Disclosure label="Add a bill-to party">
+                  <AddBillingAccountForm clientId={id} />
+                </Disclosure>
+              </div>
+            </Card>
+          </div>
         </div>
       )}
 

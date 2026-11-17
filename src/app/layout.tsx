@@ -40,6 +40,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     {me.name}
                   </span>
                   <Badge tone={me.role === 'intern' ? 'neutral' : 'brand'}>{me.role}</Badge>
+                  <Link
+                    href="/settings"
+                    className="text-[12px] text-[var(--ink-faint)] underline-offset-2 transition hover:text-[var(--accent-ink)] hover:underline"
+                  >
+                    Settings
+                  </Link>
                   <form action={signOut}>
                     <button className="text-[12px] text-[var(--ink-faint)] underline-offset-2 transition hover:text-[var(--accent-ink)] hover:underline">
                       Sign out

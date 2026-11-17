@@ -18,6 +18,10 @@ import { ActivityList } from '@/components/activity-list';
 import { CompleteTask } from '@/components/task-widgets';
 import { AddLineItemForm, AddTaskForm, LogInteractionForm } from '@/components/client-forms';
 import { DealControls, CriteriaPanel, SnapshotEditor } from '@/components/deal-controls';
+import { billingAccountsFor, billsForDeal, dealBilling } from '@/lib/billing';
+import { BillList, BillingStateBadge } from '@/components/billing-view';
+import { AddBillingAccountForm, BillToPicker, NewBillForm } from '@/components/billing';
+import { Disclosure } from '@/components/forms';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +32,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const deal = await dealById(me, id);
   if (!deal) notFound();
 
-  const [stageList, items, tasks, history, interactions, activity, people, contacts] =
+  const [stageList, items, tasks, history, interactions, activity, people, contacts, bills, billing, accounts] =
     await Promise.all([
       stages(me, deal.category),
       lineItems(me, deal.id),
@@ -38,6 +42,9 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
       activityFor(me, { dealId: deal.id, limit: 30 }),
       profiles(me),
       contactsForDeal(me, deal.id),
+      billsForDeal(me, deal.id),
+      dealBilling(me, deal.id),
+      billingAccountsFor(me, deal.client_id),
     ]);
 
   return (
@@ -102,6 +109,22 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           <Field label="Start">{istDate(deal.start_date)}</Field>
           <Field label="End">{istDate(deal.end_date)}</Field>
         </dl>
+        {billing && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--line)] pt-3 text-[12px] text-[var(--ink-muted)]">
+            <span className="t-label">Billing</span>
+            <BillingStateBadge state={billing.billing_state} testId="deal-billing-state" />
+            {billing.bills > 0 && (
+              <span className="tabular-nums">
+                {inr(billing.billed)} billed · {inr(billing.paid)} collected
+                {Number(billing.outstanding) > 0 && <> · {inr(billing.outstanding)} outstanding</>}
+              </span>
+            )}
+            {billing.overdue_bills > 0 && (
+              <Badge tone="bad">{inr(billing.overdue_amount)} overdue</Badge>
+            )}
+            {billing.paid_awaiting_ti > 0 && <Badge tone="warn">TI to issue</Badge>}
+          </div>
+        )}
       </header>
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -113,6 +136,58 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
 
           <Card title="Snapshot" testId="panel-snapshot">
             <SnapshotEditor deal={deal} people={people} />
+          </Card>
+
+          <Card
+            title="Billing"
+            testId="panel-billing"
+            count={bills.length}
+            action={billing && <BillingStateBadge state={billing.billing_state} />}
+          >
+            {bills.length === 0 ? (
+              <Empty>
+                {billing?.billing_state === 'not_yet'
+                  ? 'Not invoiced. Expansion deals are billed once they close.'
+                  : billing?.billing_state === 'no_value'
+                    ? 'Not invoiced. Set a monthly or contract value to know what to bill.'
+                    : 'Not invoiced yet. Add the PI once it is raised in Zoho.'}
+              </Empty>
+            ) : (
+              <BillList bills={bills} />
+            )}
+            {billing?.bills_monthly && billing.billing_state === 'not_invoiced' && bills.length > 0 && (
+              <p className="mt-3 rounded-md bg-[var(--amber-soft)] px-2.5 py-1.5 text-[12px] text-[var(--amber)]">
+                No PI covers this month yet.
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap items-start justify-between gap-3 border-t border-[var(--line)] pt-3">
+              <Disclosure label="Add a PI" testId="add-bill">
+                <NewBillForm
+                  dealId={deal.id}
+                  accounts={accounts}
+                  defaultAccountId={billing?.billing_account_id ?? null}
+                  monthly={Boolean(billing?.bills_monthly)}
+                  suggestedAmount={
+                    billing?.bills_monthly
+                      ? Number(deal.monthly_value)
+                      : deal.contract_value
+                        ? Math.max(0, Number(deal.contract_value) - Number(billing?.billed ?? 0) / 1.18)
+                        : null
+                  }
+                />
+              </Disclosure>
+              <div className="flex items-center gap-2">
+                <span className="t-label whitespace-nowrap">Bill to</span>
+                <BillToPicker dealId={deal.id} accounts={accounts} current={billing?.billing_account_id ?? null} />
+              </div>
+            </div>
+            {accounts.length === 0 && (
+              <div className="mt-3">
+                <Disclosure label="Add a bill-to party">
+                  <AddBillingAccountForm clientId={deal.client_id} dealId={deal.id} />
+                </Disclosure>
+              </div>
+            )}
           </Card>
 
           <Card title="Line items" testId="panel-line-items" count={items.length}>

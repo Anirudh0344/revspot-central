@@ -264,3 +264,84 @@ select expect_fail(
     ('00000000-0000-0000-0000-00000000d001','Viewer task')$$,
   'row-level security');
 reset role;
+
+\echo '--- Billing: PI, PO/RO, payment, TI'
+select set_config('app.actor','00000000-0000-0000-0000-00000000a001', false);
+insert into deals (id, client_id, title, category, stage, term_months, monthly_value, end_date,
+                   next_step, next_step_due)
+values ('00000000-0000-0000-0000-00000000d0b1','00000000-0000-0000-0000-00000000c001',
+        'Billing test retainer','retention','active', 6, 100000, current_date + 120,
+        'Send the monthly report', current_date + 5);
+select expect((select billing_state from deal_billing where deal_id='00000000-0000-0000-0000-00000000d0b1')
+              ='not_invoiced', 'BI-1 a monthly retainer with no bill this month is not invoiced');
+
+insert into billing_accounts (id, client_id, name, to_emails, is_intermediary)
+values ('00000000-0000-0000-0000-00000000ba01','00000000-0000-0000-0000-00000000c001',
+        'Insomniacs (agency)', '{accounts@agency.test}', true);
+update deals set billing_account_id='00000000-0000-0000-0000-00000000ba01'
+ where id='00000000-0000-0000-0000-00000000d0b1';
+
+insert into invoices (id, deal_id, amount, gst, pi_number, pi_date, pi_sent_on, due_date,
+                      period_start, period_end, description)
+values ('00000000-0000-0000-0000-00000000b001','00000000-0000-0000-0000-00000000d0b1',
+        100000, 18000, 'PI-T-001', current_date - 10, current_date - 10, current_date - 2,
+        date_trunc('month', today_ist())::date,
+        (date_trunc('month', today_ist()) + interval '1 month - 1 day')::date,
+        'Monthly retainer');
+select expect((select client_id from invoices where id='00000000-0000-0000-0000-00000000b001')
+              ='00000000-0000-0000-0000-00000000c001', 'BI-2 a bill takes its client from the deal');
+select expect((select billing_account_id from invoices where id='00000000-0000-0000-0000-00000000b001')
+              ='00000000-0000-0000-0000-00000000ba01', 'BI-3 a bill takes the deal''s bill-to party');
+select expect((select step from bill_view where id='00000000-0000-0000-0000-00000000b001')='pi_sent',
+  'BI-4 a sent PI with no PO/RO is at PI sent');
+select expect((select overdue and days_overdue = 2 from bill_view where id='00000000-0000-0000-0000-00000000b001'),
+  'BI-5 past its due date and unpaid, the bill is overdue');
+select expect((select billing_state from deal_billing where deal_id='00000000-0000-0000-0000-00000000d0b1')
+              ='invoiced', 'BI-6 a bill covering this month makes the retainer invoiced');
+
+select expect(queue_billing_reminders() = 1, 'BI-7 one reminder is queued for the overdue bill');
+select expect(queue_billing_reminders() = 0, 'BI-8 running the queue again adds nothing');
+select expect((select kind = 'overdue' and to_emails = '{accounts@agency.test}'
+                      and body like '%₹1,18,000%'
+                 from billing_reminders where invoice_id='00000000-0000-0000-0000-00000000b001'),
+  'BI-9 the reminder is an overdue notice to the agency, in Indian rupee format');
+
+select expect_fail(
+  $$insert into invoices (deal_id, client_id, amount) values
+    ('00000000-0000-0000-0000-00000000d0b1','00000000-0000-0000-0000-00000000c002', 10)$$,
+  'does not match');
+select expect_fail(
+  $$update invoices set ti_number='TI-T-001', pi_number=null where id='00000000-0000-0000-0000-00000000b001'$$,
+  'invoices_ti_after_pi');
+
+update invoices set po_number='RO-0144', po_received_on=current_date - 8
+ where id='00000000-0000-0000-0000-00000000b001';
+insert into payments (invoice_id, amount, received_on, reference)
+values ('00000000-0000-0000-0000-00000000b001', 50000, current_date, 'UTR-1');
+select expect((select step from bill_view where id='00000000-0000-0000-0000-00000000b001')='partially_paid',
+  'BI-10 a part payment leaves the bill partly paid');
+select expect_fail(
+  $$insert into payments (invoice_id, amount, received_on, reference)
+    values ('00000000-0000-0000-0000-00000000b001', 70000, current_date, 'UTR-2')$$,
+  'past its total');
+insert into payments (invoice_id, amount, received_on, reference)
+values ('00000000-0000-0000-0000-00000000b001', 68000, current_date, 'UTR-2');
+select expect((select step from bill_view where id='00000000-0000-0000-0000-00000000b001')='paid',
+  'BI-11 paid in full and no TI yet: paid, awaiting the TI');
+select expect((select paid_awaiting_ti from deal_billing where deal_id='00000000-0000-0000-0000-00000000d0b1')=1,
+  'BI-12 the deal flags a TI to issue');
+update invoices set ti_number='TI-T-001', ti_date=current_date where id='00000000-0000-0000-0000-00000000b001';
+select expect((select step from bill_view where id='00000000-0000-0000-0000-00000000b001')='ti_issued',
+  'BI-13 the TI closes the bill');
+select expect((select billing_state from deal_billing where deal_id='00000000-0000-0000-0000-00000000d0b1')='paid',
+  'BI-14 everything collected: the deal reads paid');
+select expect((select bills_raised = 1 and due_amount = 0 and collected = 118000
+                 from client_billing where client_id='00000000-0000-0000-0000-00000000c001'),
+  'BI-15 the client totals add up');
+select expect(queue_billing_reminders() = 0, 'BI-16 a paid bill gets no reminders');
+
+-- The signed-in role can never read mailbox tokens.
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000a001', false);
+set role authenticated;
+select expect_fail($$select * from mail_account_tokens$$, 'permission denied');
+reset role;

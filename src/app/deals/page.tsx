@@ -9,6 +9,8 @@ import { Badge, CategoryTag, Code, HealthDot, Owner, TermTag } from '@/component
 import { Board } from '@/components/board';
 import { btnPrimary } from '@/components/forms';
 import { Filters, ViewTabs } from './controls';
+import { billingStates, type BillingState } from '@/lib/billing';
+import { BillingStateBadge } from '@/components/billing-view';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +43,7 @@ export default async function DealsPage({
     q: sp.q,
   };
 
-  const [all, scoped, people, clients, stageList] = await Promise.all([
+  const [all, scoped, people, clients, stageList, billing] = await Promise.all([
     // Every live deal, so the tabs carry honest counts whatever the filters say.
     dealList(me, {}),
     // Live deals only. A closed deal leaves this module and stays on its client's page.
@@ -49,6 +51,7 @@ export default async function DealsPage({
     profiles(me),
     clientList(me),
     category ? stages(me, category) : Promise.resolve([]),
+    billingStates(me),
   ]);
   const liveStages = stageList.filter((st) => !st.is_terminal);
 
@@ -122,7 +125,7 @@ export default async function DealsPage({
         <Board stages={liveStages} deals={scoped} move={moveStageAction} />
       ) : (
         <>
-          <DealTable rows={rows} />
+          <DealTable rows={rows} billing={billing} />
           {pages > 1 && (
             <nav className="flex gap-1" data-testid="pagination">
               {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
@@ -146,7 +149,7 @@ export default async function DealsPage({
   );
 }
 
-function DealTable({ rows }: { rows: DealRow[] }) {
+function DealTable({ rows, billing }: { rows: DealRow[]; billing: Map<string, BillingState> }) {
   if (rows.length === 0) {
     return (
       <div className="rounded-[var(--radius)] border border-[var(--line)] px-4 py-12 text-center text-[13px] text-[var(--ink-faint)]">
@@ -164,6 +167,7 @@ function DealTable({ rows }: { rows: DealRow[] }) {
             <th className="t-label px-3 py-2">Stage</th>
             <th className="t-label px-3 py-2">Next step</th>
             <th className="t-label px-3 py-2 text-right">Monthly</th>
+            <th className="t-label px-3 py-2">Billing</th>
             <th className="t-label px-3 py-2">Owner</th>
             <th className="t-label px-3 py-2">Ends</th>
           </tr>
@@ -217,6 +221,9 @@ function DealTable({ rows }: { rows: DealRow[] }) {
               </td>
               <td className="px-3 py-2.5 text-right text-[13px] tabular-nums">
                 {inr(d.monthly_value, true)}
+              </td>
+              <td className="px-3 py-2.5">
+                <BillingStateBadge state={billing.get(d.id) ?? 'not_invoiced'} />
               </td>
               <td className="px-3 py-2.5">
                 <Owner name={d.intern_owner_name} />
