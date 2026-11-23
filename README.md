@@ -1,4 +1,4 @@
-# Revspot CS Command Center
+# Revspot Central
 
 Internal system of record for customer success: every client and deal, each deal's
 health against written success criteria, and the activity log behind it all.

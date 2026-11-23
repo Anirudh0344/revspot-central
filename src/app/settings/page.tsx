@@ -2,10 +2,13 @@ import { redirect } from 'next/navigation';
 import { currentProfile } from '@/lib/auth';
 import { mailAccounts } from '@/lib/billing';
 import { redirectUri, setupGaps } from '@/lib/gmail';
-import { istDate } from '@/lib/format';
+import { istDate, istDateTime } from '@/lib/format';
 import { Badge, Card, Empty } from '@/components/ui';
 import { btn, btnPrimary } from '@/components/forms';
-import { DisconnectMailbox } from '@/components/billing';
+import { DisconnectMailbox, RunButton } from '@/components/billing';
+import { runDailyNowAction, syncMailNowAction } from '@/lib/billing-actions';
+import { recentJobs } from '@/lib/jobs';
+import { slackConfigured } from '@/lib/alerts';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +20,7 @@ export default async function SettingsPage({
   const me = await currentProfile();
   if (!me) redirect('/login');
   const sp = await searchParams;
-  const accounts = await mailAccounts(me);
+  const [accounts, jobs] = await Promise.all([mailAccounts(me), recentJobs(8)]);
   const gaps = setupGaps();
   const sender = accounts.find((a) => a.can_send && a.status === 'connected');
   const mine = accounts.find((a) => a.email === me.email?.toLowerCase());
@@ -106,6 +109,11 @@ export default async function SettingsPage({
                 <span className="text-[12px] text-[var(--ink-faint)]">
                   by {a.connected_by_name ?? '—'} · {istDate(a.connected_at)}
                 </span>
+                {a.last_synced_at && (
+                  <span className="text-[12px] text-[var(--ink-faint)]">
+                    · synced {istDateTime(a.last_synced_at)} ({a.last_sync_count ?? 0} new)
+                  </span>
+                )}
                 {a.last_error && <span className="text-[12px] text-[var(--red)]">{a.last_error}</span>}
                 {me.role === 'admin' && a.status !== 'disconnected' && (
                   <span className="ml-auto">
@@ -118,6 +126,69 @@ export default async function SettingsPage({
         ) : (
           gaps.length === 0 && <Empty>No mailbox connected yet.</Empty>
         )}
+        {accounts.some((a) => a.status !== 'disconnected') && (
+          <div className="mt-3 flex items-center gap-3 border-t border-[var(--line)] pt-3">
+            <RunButton
+              run={syncMailNowAction}
+              label="Sync email now"
+              busy="Syncing…"
+              done="{n} new emails logged"
+              testId="sync-now"
+            />
+            <span className="text-[12px] text-[var(--ink-faint)]">
+              Client emails are logged on the client and deal. The first sync looks back 30 days.
+            </span>
+          </div>
+        )}
+      </Card>
+
+      <Card title="Alerts and daily jobs" testId="jobs">
+        <div className="space-y-3 text-[13px]">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="font-medium">Slack</p>
+              <p className="text-[12px] text-[var(--ink-muted)]">
+                A morning summary, plus an alert when a deal turns red or a payment lands.
+              </p>
+            </div>
+            {slackConfigured() ? (
+              <Badge tone="good" dot>Connected</Badge>
+            ) : (
+              <span className="text-[12px] text-[var(--ink-muted)]">
+                Set <code>SLACK_WEBHOOK_URL</code> to an incoming webhook for your channel.
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-start justify-between gap-3 border-t border-[var(--line)] pt-3">
+            <div>
+              <p className="font-medium">Daily jobs</p>
+              <p className="text-[12px] text-[var(--ink-muted)]">
+                Every morning at 9: sync email, move term deals to Renewal due, queue payment reminders, post the
+                summary. Email also syncs every three hours.
+                {!process.env.CRON_SECRET && ' The schedule runs once the app is hosted.'}
+              </p>
+            </div>
+            {me.role === 'admin' && (
+              <RunButton run={runDailyNowAction} label="Run now" busy="Running…" done="Done" testId="run-daily" />
+            )}
+          </div>
+          {jobs.length > 0 && (
+            <ul className="space-y-1 border-t border-[var(--line)] pt-3 text-[12px]">
+              {jobs.map((j) => (
+                <li key={j.id} className="flex flex-wrap gap-2 text-[var(--ink-muted)]">
+                  <span className={j.ok === false ? 'text-[var(--red)]' : j.ok ? 'text-[var(--green-ink)]' : ''}>
+                    {j.ok === false ? 'Failed' : j.ok ? 'Done' : 'Running'}
+                  </span>
+                  <span className="font-medium text-[var(--ink)]">{j.job === 'daily' ? 'Daily jobs' : 'Email sync'}</span>
+                  <span>{istDateTime(j.started_at)}</span>
+                  {j.ok === false && (
+                    <span className="text-[var(--red)]">{String((j.summary as { error?: string })?.error ?? '')}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </Card>
 
       <Card title="Zoho Billing">

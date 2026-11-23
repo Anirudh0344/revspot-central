@@ -161,7 +161,9 @@ export function TermTag({ months }: { months: number | null }) {
 /* --------------------------------------------------------------- deal card */
 
 /** DL-3. The health signal is a 2px left edge, so a column reads at a glance. */
-export function DealCard({ deal, compact }: { deal: DealRow; compact?: boolean }) {
+export type CardFlags = { reasons: { key: string; text: string; severity: 'red' | 'amber' }[]; questions: number };
+
+export function DealCard({ deal, compact, flags }: { deal: DealRow; compact?: boolean; flags?: CardFlags }) {
   const edge =
     deal.health === 'red'
       ? 'before:bg-[var(--red-dot)]'
@@ -194,12 +196,43 @@ export function DealCard({ deal, compact }: { deal: DealRow; compact?: boolean }
             <span className="tabular-nums">{inr(deal.monthly_value, true)}</span>
             <span className="text-[var(--line-strong)]">·</span>
             <span className="tabular-nums">{deal.days_in_stage}d</span>
-            <span className="ml-auto">
-              <Owner name={deal.intern_owner_name} />
-            </span>
+            {!flags && (
+              <span className="ml-auto">
+                <Owner name={deal.intern_owner_name} />
+              </span>
+            )}
           </div>
 
-          {(!deal.criteria_complete || deal.health_stale || deal.code || deal.category === 'retention') && (
+          {flags && (
+            <div className="mt-2 space-y-1" data-testid="card-flags">
+              <p className="flex items-center gap-1.5 text-[11px]">
+                <Owner name={deal.intern_owner_name} />
+                <span className={deal.intern_owner_name ? 'text-[var(--ink)]' : 'font-medium text-[var(--red)]'}>
+                  {deal.intern_owner_name ?? 'No owner'}
+                </span>
+                {flags.questions > 0 && (
+                  <span className="ml-auto rounded bg-[var(--amber-soft)] px-1 text-[var(--amber)]">
+                    {flags.questions} {flags.questions === 1 ? 'question' : 'questions'}
+                  </span>
+                )}
+              </p>
+              {flags.reasons.filter((r) => r.key !== 'owner').slice(0, 3).map((r) => (
+                <p
+                  key={r.text}
+                  className={`line-clamp-2 rounded px-1.5 py-0.5 text-[11px] leading-snug ${
+                    r.severity === 'red' ? 'bg-[var(--red-soft)] text-[var(--red)]' : 'bg-[var(--amber-soft)] text-[var(--amber)]'
+                  }`}
+                >
+                  {r.text}
+                </p>
+              ))}
+              {flags.reasons.filter((r) => r.key !== 'owner').length > 3 && (
+                <p className="text-[11px] text-[var(--ink-faint)]">more on the deal</p>
+              )}
+            </div>
+          )}
+
+          {!flags && (!deal.criteria_complete || deal.health_stale || deal.code || deal.category === 'retention') && (
             <div className="mt-2 flex flex-wrap items-center gap-1">
               {deal.code && <Code>{deal.code}</Code>}
               {deal.category === 'retention' && <TermTag months={deal.term_months} />}

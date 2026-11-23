@@ -3,8 +3,10 @@
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { requireProfile, asActor, DEV_PROFILE_COOKIE } from './auth';
+import { requireProfile, asActor, DEV_PROFILE_COOKIE, devAuthEnabled } from './auth';
+import { SESSION_COOKIE } from './session';
 import { query, write, tx, readableError } from './db';
+import { alertHealthRed } from './alerts';
 
 export type Result = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -229,6 +231,7 @@ export async function setHealthAction(
     await write(asActor(me), `Health set to ${health}: ${reason}`,
       'update deals set health = $1::health, health_reason = $2 where id = $3',
       [health, reason.trim(), id]);
+    if (health === 'red') await alertHealthRed(id, reason.trim(), me.name).catch(() => {});
     revalidatePath(`/deals/${id}`);
     revalidatePath('/');
     return ok(id);
@@ -422,6 +425,7 @@ export async function undoActivityAction(activityId: number, field?: string): Pr
 /* -------------------------------------------------- dev sign-in (no Supabase) */
 
 export async function devSignIn(profileId: string): Promise<void> {
+  if (!devAuthEnabled()) redirect('/login');
   const jar = await cookies();
   jar.set(DEV_PROFILE_COOKIE, profileId, { httpOnly: true, sameSite: 'lax', path: '/' });
   redirect('/');
@@ -430,6 +434,7 @@ export async function devSignIn(profileId: string): Promise<void> {
 export async function signOut(): Promise<void> {
   const jar = await cookies();
   jar.delete(DEV_PROFILE_COOKIE);
+  jar.delete(SESSION_COOKIE);
   redirect('/login');
 }
 

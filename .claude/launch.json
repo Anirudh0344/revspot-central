@@ -9,6 +9,15 @@
         "dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "test-db",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "NEXT_DIST_DIR=.next-test DATABASE_URL=postgresql:///cs_cc_test APP_URL=http://localhost:3001 npx next dev -p 3001"
+      ],
+      "port": 3001
     }
   ]
 }

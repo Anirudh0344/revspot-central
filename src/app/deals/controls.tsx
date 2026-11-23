@@ -28,7 +28,7 @@ export function ViewTabs({
 
   return (
     <div
-      className="inline-flex rounded-[var(--radius)] border border-[var(--line)] bg-[var(--paper-sunk)] p-0.5"
+      className="scroll-x inline-flex max-w-full overflow-x-auto rounded-[var(--radius)] border border-[var(--line)] bg-[var(--paper-sunk)] p-0.5"
       data-testid="view-tabs"
       role="tablist"
     >
@@ -41,18 +41,20 @@ export function ViewTabs({
             role="tab"
             aria-selected={active}
             data-testid={`view-${v.key}`}
-            className={`inline-flex items-center gap-1.5 rounded-[7px] px-3 py-1.5 text-[13px] transition ${
+            className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[7px] px-3 py-1.5 text-[13px] transition ${
               active
                 ? 'bg-[var(--accent)] font-medium text-[var(--on-accent)] shadow-[var(--lift-accent)]'
                 : 'text-[var(--ink-muted)] hover:bg-[var(--accent-100)] hover:text-[var(--accent-ink)]'
             }`}
           >
             {v.label}
-            <span
-              className={`tabular-nums ${active ? 'text-[var(--on-accent)] opacity-60' : 'text-[var(--ink-faint)]'}`}
-            >
-              {counts[v.key] ?? 0}
-            </span>
+            {counts[v.key] !== undefined && (
+              <span
+                className={`tabular-nums ${active ? 'text-[var(--on-accent)] opacity-60' : 'text-[var(--ink-faint)]'}`}
+              >
+                {counts[v.key]}
+              </span>
+            )}
           </Link>
         );
       })}

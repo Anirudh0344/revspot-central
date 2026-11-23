@@ -345,3 +345,85 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000a001'
 set role authenticated;
 select expect_fail($$select * from mail_account_tokens$$, 'permission denied');
 reset role;
+
+\echo '--- Playbooks and revenue dates'
+select set_config('app.actor','00000000-0000-0000-0000-00000000a001', false);
+select expect((select count(*) from playbook_runs r join playbooks p on p.id = r.playbook_id
+                where r.deal_id='00000000-0000-0000-0000-00000000d001' and p.name='Pilot kickoff call')=1,
+  'PB-1 entering Kickoff starts the kickoff playbook by itself');
+select expect((select count(*) from tasks t join playbook_runs r on r.id = t.playbook_run_id
+                where r.deal_id='00000000-0000-0000-0000-00000000d001')=3,
+  'PB-2 the playbook creates its three tasks');
+select expect(start_playbook((select id from playbooks where name='Pilot kickoff call'),
+                             '00000000-0000-0000-0000-00000000d001') =
+              (select id from playbook_runs where deal_id='00000000-0000-0000-0000-00000000d001'
+                  and status='in_progress' and playbook_id=(select id from playbooks where name='Pilot kickoff call')),
+  'PB-3 starting it again returns the open run instead of a second one');
+update deals set health='red', health_reason='Connect rate halved'
+ where id='00000000-0000-0000-0000-00000000d0b1';
+select expect((select count(*) from playbook_runs r join playbooks p on p.id = r.playbook_id
+                where r.deal_id='00000000-0000-0000-0000-00000000d0b1' and p.trigger='health_red')=1,
+  'PB-4 turning red starts the recovery playbook');
+select expect((select closed_at is not null from deals where id='00000000-0000-0000-0000-00000000d001'),
+  'RV-1 a converted pilot carries the date it closed');
+select expect((select closed_at is null from deals where id='00000000-0000-0000-0000-00000000d0b1'),
+  'RV-2 a live deal has no close date');
+
+\echo '--- Pipeline owners, blockers and questions'
+select set_config('app.actor','00000000-0000-0000-0000-00000000a001', false);
+insert into deals (id, client_id, title, category, stage, next_step, next_step_due)
+values ('00000000-0000-0000-0000-00000000d0f1','00000000-0000-0000-0000-00000000c001',
+        'Ownerless pilot','pilot','handover','Book kickoff', current_date + 2);
+select expect_fail(
+  $$update deals set stage='setup' where id='00000000-0000-0000-0000-00000000d0f1'$$,
+  'Set an owner');
+update deals set intern_owner='00000000-0000-0000-0000-00000000a001', stage='setup'
+ where id='00000000-0000-0000-0000-00000000d0f1';
+select expect((select stage from deals where id='00000000-0000-0000-0000-00000000d0f1')='setup',
+  'PL-1 a pilot moves past handover once it has an owner, and an admin can own it');
+select expect_fail(
+  $$update deals set blocked_on='client' where id='00000000-0000-0000-0000-00000000d0f1'$$,
+  'Say what the deal is stuck on');
+update deals set blocked_on='client', blocker_note='Waiting for the lead list'
+ where id='00000000-0000-0000-0000-00000000d0f1';
+select expect((select blocked_since is not null from deal_signals where deal_id='00000000-0000-0000-0000-00000000d0f1'),
+  'PL-2 marking a deal stuck records when');
+update deals set blocked_on=null where id='00000000-0000-0000-0000-00000000d0f1';
+select expect((select blocker_note is null and blocked_since is null from deals where id='00000000-0000-0000-0000-00000000d0f1'),
+  'PL-3 clearing it clears the note');
+
+-- A viewer can ask; the person asked answers; the asker resolves.
+select set_config('app.actor','00000000-0000-0000-0000-00000000a005', false);
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000a005', false);
+set role authenticated;
+insert into questions (id, deal_id, client_id, anchor, body, asked_to)
+values ('00000000-0000-0000-0000-0000000000f1','00000000-0000-0000-0000-00000000d0f1',
+        '00000000-0000-0000-0000-00000000c001','criteria','What is the target connect rate?',
+        '00000000-0000-0000-0000-00000000a002');
+select expect((select open_questions from deal_signals where deal_id='00000000-0000-0000-0000-00000000d0f1')=1,
+  'QA-1 a viewer can ask a question on a deal');
+select expect_fail(
+  $$insert into questions (deal_id, client_id, body, created_by)
+    values ('00000000-0000-0000-0000-00000000d0f1','00000000-0000-0000-0000-00000000c001','Spoofed',
+            '00000000-0000-0000-0000-00000000a002')$$,
+  'row-level security');
+reset role;
+select set_config('app.actor','00000000-0000-0000-0000-00000000a002', false);
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000a002', false);
+set role authenticated;
+insert into question_replies (question_id, deal_id, body)
+values ('00000000-0000-0000-0000-0000000000f1','00000000-0000-0000-0000-00000000d0f1','30% by week two');
+reset role;
+select expect((select status from questions where id='00000000-0000-0000-0000-0000000000f1')='answered',
+  'QA-2 a reply from the person asked answers it');
+select set_config('app.actor','00000000-0000-0000-0000-00000000a005', false);
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000a005', false);
+set role authenticated;
+update questions set status='resolved' where id='00000000-0000-0000-0000-0000000000f1';
+reset role;
+select expect((select status = 'resolved' and resolved_at is not null from questions
+                where id='00000000-0000-0000-0000-0000000000f1'),
+  'QA-3 the asker can resolve it');
+select expect((select count(*) from activity where entity_type='questions'
+                and entity_id='00000000-0000-0000-0000-0000000000f1')>=2,
+  'QA-4 questions are in the audit log');

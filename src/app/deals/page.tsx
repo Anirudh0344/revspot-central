@@ -11,6 +11,9 @@ import { btnPrimary } from '@/components/forms';
 import { Filters, ViewTabs } from './controls';
 import { billingStates, type BillingState } from '@/lib/billing';
 import { BillingStateBadge } from '@/components/billing-view';
+import { analytics, PERIODS, type Filters as AnalyticsFilterValues, type PeriodKey } from '@/lib/analytics';
+import { AnalyticsDashboard } from '@/components/analytics-view';
+import { AnalyticsFilters } from '@/components/analytics';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +22,7 @@ const VIEWS = [
   { key: 'pilot', label: 'Pilot' },
   { key: 'retention', label: 'Retention' },
   { key: 'expansion', label: 'Expansion' },
+  { key: 'analytics', label: 'Analytics' },
 ] as const;
 
 type ViewKey = (typeof VIEWS)[number]['key'];
@@ -33,7 +37,7 @@ export default async function DealsPage({
   const sp = await searchParams;
 
   const view = (VIEWS.find((v) => v.key === sp.view)?.key ?? 'all') as ViewKey;
-  const category = view === 'all' ? undefined : view;
+  const category = view === 'all' || view === 'analytics' ? undefined : view;
 
   const filters = {
     health: sp.health,
@@ -43,7 +47,14 @@ export default async function DealsPage({
     q: sp.q,
   };
 
-  const [all, scoped, people, clients, stageList, billing] = await Promise.all([
+  const analyticsFilters: AnalyticsFilterValues = {
+    period: (PERIODS.find((p) => p.key === sp.period)?.key ?? 'month') as PeriodKey,
+    owner: sp.owner || undefined,
+    client: sp.client || undefined,
+    category: (['pilot', 'retention', 'expansion'] as const).find((c) => c === sp.category),
+  };
+
+  const [all, scoped, people, clients, stageList, billing, dashboard] = await Promise.all([
     // Every live deal, so the tabs carry honest counts whatever the filters say.
     dealList(me, {}),
     // Live deals only. A closed deal leaves this module and stays on its client's page.
@@ -52,6 +63,7 @@ export default async function DealsPage({
     clientList(me),
     category ? stages(me, category) : Promise.resolve([]),
     billingStates(me),
+    view === 'analytics' ? analytics(me, analyticsFilters) : Promise.resolve(null),
   ]);
   const liveStages = stageList.filter((st) => !st.is_terminal);
 
@@ -95,6 +107,19 @@ export default async function DealsPage({
       </div>
 
       <ViewTabs views={VIEWS} current={view} counts={counts} />
+
+      {dashboard ? (
+        <>
+          <AnalyticsFilters
+            periods={PERIODS}
+            people={people.filter((p) => p.role !== 'viewer' && p.role !== 'bot').map((p) => ({ id: p.id, name: p.name }))}
+            clients={clients.map((c) => ({ id: c.id, name: c.name }))}
+            values={analyticsFilters}
+          />
+          <AnalyticsDashboard data={dashboard} filters={analyticsFilters} />
+        </>
+      ) : (
+      <>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px] text-[var(--ink-muted)]">
         <span>
@@ -144,6 +169,8 @@ export default async function DealsPage({
             </nav>
           )}
         </>
+      )}
+      </>
       )}
     </div>
   );

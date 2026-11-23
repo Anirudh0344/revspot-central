@@ -16,7 +16,7 @@ import { useState, useTransition } from 'react';
 import type { Result } from '@/lib/actions';
 import type { Stage } from '@/lib/queries';
 import type { DealRow } from '@/lib/types';
-import { DealCard } from './ui';
+import { DealCard, type CardFlags } from './ui';
 import { btn, btnQuiet, input } from './forms';
 
 type MoveFn = (id: string, stage: string, reason?: string, closeReason?: string) => Promise<Result>;
@@ -66,10 +66,13 @@ export function Board({
   stages,
   deals,
   move,
+  flags,
 }: {
   stages: Stage[];
   deals: DealRow[];
   move: MoveFn;
+  /** Per deal: why it is stuck, shown on the card. */
+  flags?: Record<string, CardFlags>;
 }) {
   const router = useRouter();
   const [dragging, setDragging] = useState<DealRow | null>(null);
@@ -157,7 +160,7 @@ export function Board({
               <Column key={s.key} stage={s} deals={inStage}>
                 {inStage.map((d) => (
                   <Draggable key={d.id} deal={d}>
-                    <DealCard deal={d} />
+                    <DealCard deal={d} flags={flags?.[d.id]} />
                   </Draggable>
                 ))}
                 {inStage.length === 0 && (

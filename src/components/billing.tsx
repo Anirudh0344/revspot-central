@@ -518,3 +518,49 @@ export function DisconnectMailbox({ id, email }: { id: string; email: string }) 
     </button>
   );
 }
+
+/** A button that runs one server action and shows how it went. */
+export function RunButton({
+  run,
+  label,
+  busy = 'Working…',
+  done,
+  primary,
+  testId,
+}: {
+  run: () => Promise<Result>;
+  label: string;
+  busy?: string;
+  /** Shown after success; `{n}` is replaced with what the action returned. */
+  done?: string;
+  primary?: boolean;
+  testId?: string;
+}) {
+  const [pending, start] = useTransition();
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const router = useRouter();
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        className={primary ? btnPrimary : btn}
+        disabled={pending}
+        data-testid={testId}
+        onClick={() =>
+          start(async () => {
+            const res = await run();
+            if (res.ok) {
+              setNote(done ? { ok: true, text: done.replace('{n}', res.id ?? '0') } : null);
+              router.refresh();
+            } else setNote({ ok: false, text: res.error });
+          })
+        }
+      >
+        {pending ? busy : label}
+      </button>
+      {note && (
+        <span className={`text-[12px] ${note.ok ? 'text-[var(--ink-muted)]' : 'text-[var(--red)]'}`}>{note.text}</span>
+      )}
+    </span>
+  );
+}

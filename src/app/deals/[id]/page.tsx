@@ -5,14 +5,13 @@ import {
   activityFor,
   dealById,
   healthHistory,
-  interactionsFor,
   lineItems,
   profiles,
   stages,
   tasksFor,
   contactsForDeal,
 } from '@/lib/queries';
-import { inr, istDate, istDateTime, relativeDue } from '@/lib/format';
+import { inr, istDate, relativeDue } from '@/lib/format';
 import { Badge, Card, CategoryTag, Code, Empty, Field, HealthDot, TermTag } from '@/components/ui';
 import { ActivityList } from '@/components/activity-list';
 import { CompleteTask } from '@/components/task-widgets';
@@ -22,30 +21,52 @@ import { billingAccountsFor, billsForDeal, dealBilling } from '@/lib/billing';
 import { BillList, BillingStateBadge } from '@/components/billing-view';
 import { AddBillingAccountForm, BillToPicker, NewBillForm } from '@/components/billing';
 import { Disclosure } from '@/components/forms';
+import { playbooksFor, runsForDeal } from '@/lib/playbooks';
+import { RunPanel, StartPlaybook } from '@/components/playbooks';
+import { dealTimeline, BLOCKER_LABEL } from '@/lib/timeline';
+import { Timeline } from '@/components/timeline';
+import { AskForm, AskLink, BlockerForm } from '@/components/questions';
+import { query } from '@/lib/db';
+import { asActor } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-export default async function DealPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DealPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const me = await currentProfile();
   if (!me) redirect('/login');
   const { id } = await params;
+  const sp = await searchParams;
   const deal = await dealById(me, id);
   if (!deal) notFound();
 
-  const [stageList, items, tasks, history, interactions, activity, people, contacts, bills, billing, accounts] =
+  const [stageList, items, tasks, history, activity, people, contacts, bills, billing, accounts, runs, playbookChoices, timeline, signals, mailboxes] =
     await Promise.all([
       stages(me, deal.category),
       lineItems(me, deal.id),
       tasksFor(me, { dealId: deal.id }),
       healthHistory(me, deal.id),
-      interactionsFor(me, { dealId: deal.id, limit: 8 }),
       activityFor(me, { dealId: deal.id, limit: 30 }),
       profiles(me),
       contactsForDeal(me, deal.id),
       billsForDeal(me, deal.id),
       dealBilling(me, deal.id),
       billingAccountsFor(me, deal.client_id),
+      runsForDeal(me, deal.id),
+      playbooksFor(me, deal.category),
+      dealTimeline(me, deal.id),
+      query<{ blocked_on: string | null; blocker_note: string | null; blocked_since: string | null; open_questions: number }>(
+        asActor(me), 'select blocked_on, blocker_note, blocked_since, open_questions from deal_signals where deal_id = $1', [deal.id]),
+      query<{ n: number }>(asActor(me), `select count(*)::int as n from mail_accounts where can_read and status = 'connected'`),
     ]);
+  const signal = signals[0];
+  const askable = people.filter((p) => p.role !== 'bot');
+  const openRuns = runs.filter((r) => r.status === 'in_progress');
 
   return (
     <div className="space-y-5">
@@ -75,6 +96,12 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             <Badge tone="warn" testId="criteria-incomplete">Criteria incomplete</Badge>
           )}
           {deal.health_stale && <Badge testId="health-stale">Health stale</Badge>}
+          {signal?.blocked_on && (
+            <Badge tone="bad" testId="deal-stuck">Stuck on {BLOCKER_LABEL[signal.blocked_on]}</Badge>
+          )}
+          {signal?.open_questions > 0 && (
+            <a href="#ask"><Badge tone="warn">{signal.open_questions} open {signal.open_questions === 1 ? 'question' : 'questions'}</Badge></a>
+          )}
           {deal.stage_flag !== 'ok' && (
             <Badge tone={deal.stage_flag === 'red' ? 'bad' : 'warn'}>
               {deal.days_in_stage} days in stage
@@ -102,7 +129,9 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
         <dl className="mt-3.5 grid gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Field label="Owner">{deal.intern_owner_name ?? 'Unassigned'}</Field>
+          <Field label="Owner">
+            {deal.intern_owner_name ?? <span className="font-medium text-[var(--red)]">No owner</span>}
+          </Field>
           <Field label="Product">{deal.product ?? '—'}</Field>
           <Field label="Term">{deal.term_months ? `${deal.term_months} months` : '—'}</Field>
           <Field label="Monthly">{inr(deal.monthly_value)}</Field>
@@ -130,11 +159,45 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
       <div className="grid gap-5 lg:grid-cols-3">
         {/* left column */}
         <div className="space-y-5 lg:col-span-2">
-          <Card title="Success criteria" testId="panel-criteria">
+          <Card title="Activity history" testId="panel-activity" count={timeline.items.length}>
+            <Timeline
+              dealId={deal.id}
+              items={timeline.items}
+              upcoming={timeline.upcoming}
+              counts={timeline.counts}
+              meId={me.id}
+              mailboxes={mailboxes[0]?.n ?? 0}
+            />
+            {me.role === 'admin' && (
+              <div className="mt-3 border-t border-[var(--line)] pt-3">
+                <Disclosure label="Raw audit log, with undo">
+                  <ActivityList rows={activity} canUndo />
+                </Disclosure>
+              </div>
+            )}
+          </Card>
+
+          <Card title="Playbooks" testId="panel-playbooks" count={openRuns.length || undefined}>
+            {runs.length > 0 && (
+              <div className="mb-3 space-y-2">
+                {runs.map((r, i) => (
+                  <RunPanel key={r.id} run={r} dealId={deal.id} open={i === 0 && r.status === 'in_progress'} />
+                ))}
+              </div>
+            )}
+            {runs.length === 0 && (
+              <p className="mb-3 text-[13px] text-[var(--ink-faint)]">
+                No playbook running. Some start by themselves when the deal changes stage or turns red.
+              </p>
+            )}
+            <StartPlaybook dealId={deal.id} playbooks={playbookChoices} />
+          </Card>
+
+          <Card title="Success criteria" testId="panel-criteria" action={<AskLink dealId={deal.id} anchor="criteria" />}>
             <CriteriaPanel deal={deal} />
           </Card>
 
-          <Card title="Snapshot" testId="panel-snapshot">
+          <Card title="Snapshot" testId="panel-snapshot" action={<AskLink dealId={deal.id} anchor="snapshot" />}>
             <SnapshotEditor deal={deal} people={people} />
           </Card>
 
@@ -142,7 +205,12 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             title="Billing"
             testId="panel-billing"
             count={bills.length}
-            action={billing && <BillingStateBadge state={billing.billing_state} />}
+            action={
+              <span className="flex items-center gap-3">
+                {billing && <BillingStateBadge state={billing.billing_state} />}
+                <AskLink dealId={deal.id} anchor="billing" />
+              </span>
+            }
           >
             {bills.length === 0 ? (
               <Empty>
@@ -241,7 +309,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             </div>
           </Card>
 
-          <Card title="Contacts" count={contacts.length}>
+          <Card title="Contacts" count={contacts.length} action={<AskLink dealId={deal.id} anchor="contacts" />}>
             <ul className="flex flex-wrap gap-2">
               {contacts.map((c) => (
                 <li
@@ -260,13 +328,38 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             </ul>
           </Card>
 
-          <Card title="Activity" testId="panel-activity" count={activity.length}>
-            <ActivityList rows={activity} canUndo={me.role === 'admin'} />
-          </Card>
+
         </div>
 
         {/* right column */}
         <div className="space-y-5">
+          <section id="ask" className="scroll-mt-4">
+            <Card title="Ask a question" testId="panel-ask" count={signal?.open_questions || undefined}>
+              <AskForm
+                key={`${sp.ask ?? ''}-${sp.about ?? ''}`}
+                dealId={deal.id}
+                people={askable}
+                anchor={sp.ask}
+                about={sp.about}
+                defaultTo={deal.intern_owner}
+              />
+              <p className="mt-2 text-[12px] text-[var(--ink-faint)]">
+                The person you ask sees it in My work. Answers appear in the activity history.
+              </p>
+            </Card>
+          </section>
+
+          {!deal.stage_is_terminal && (
+            <Card title="Stuck?" testId="panel-blocker">
+              {signal?.blocked_on && (
+                <p className="mb-2 rounded-md bg-[var(--red-soft)] px-2.5 py-1.5 text-[12px] text-[var(--red)]">
+                  Waiting on {BLOCKER_LABEL[signal.blocked_on]} since {istDate(signal.blocked_since)}: {signal.blocker_note}
+                </p>
+              )}
+              <BlockerForm dealId={deal.id} blockedOn={signal?.blocked_on ?? null} note={signal?.blocker_note ?? null} />
+            </Card>
+          )}
+
           <Card title="Health" testId="panel-health">
             <DealControls deal={deal} stages={stageList} />
             {history.length > 0 && (
@@ -286,7 +379,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             )}
           </Card>
 
-          <Card title="Next step" testId="panel-next-step">
+          <Card title="Next step" testId="panel-next-step" action={<AskLink dealId={deal.id} anchor="next_step" />}>
             {deal.next_step ? (
               <>
                 <p className="text-[13px]">{deal.next_step}</p>
@@ -301,7 +394,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             )}
           </Card>
 
-          <Card title="Tasks" testId="panel-tasks" count={tasks.length}>
+          <Card title="Tasks" testId="panel-tasks" count={tasks.length} action={<AskLink dealId={deal.id} anchor="tasks" />}>
             <ul className="divide-y divide-[var(--line)]">
               {tasks.map((t) => (
                 <li key={t.id} className="flex items-center gap-2 py-2">
@@ -317,21 +410,11 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             </div>
           </Card>
 
-          <Card title="Recent interactions" testId="panel-interactions" count={interactions.length}>
-            <ul className="space-y-2">
-              {interactions.map((i) => (
-                <li key={i.id} className="border-l-2 border-[var(--line)] pl-2.5">
-                  <p className="text-[12px] text-[var(--ink-muted)]">
-                    {istDateTime(i.occurred_at)} · {i.channel}
-                  </p>
-                  <p className="text-[13px]">{i.summary}</p>
-                </li>
-              ))}
-              {interactions.length === 0 && <Empty>Nothing logged yet.</Empty>}
-            </ul>
-            <div className="mt-3 border-t border-[var(--line)] pt-3">
-              <LogInteractionForm clientId={deal.client_id} dealId={deal.id} deals={[]} />
-            </div>
+          <Card title="Log a call, meeting or note" testId="panel-interactions">
+            <p className="mb-2 text-[12px] text-[var(--ink-faint)]">
+              Pick a future time to schedule it; it shows under Upcoming in the activity history.
+            </p>
+            <LogInteractionForm clientId={deal.client_id} dealId={deal.id} deals={[]} />
           </Card>
         </div>
       </div>

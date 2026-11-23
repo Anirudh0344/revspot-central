@@ -6,6 +6,7 @@ import { daysFromToday, istDate, relativeDue } from '@/lib/format';
 import { Card, Empty } from '@/components/ui';
 import { CompleteTask } from '@/components/task-widgets';
 import { AddTaskForm } from '@/components/client-forms';
+import { questionsFor } from '@/lib/questions';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,7 @@ export default async function TasksPage({
   const sp = await searchParams;
   const owner = sp.owner ?? me.id;
 
-  const [tasks, people] = await Promise.all([tasksFor(me, { owner }), profiles(me)]);
+  const [tasks, people, questions] = await Promise.all([tasksFor(me, { owner }), profiles(me), questionsFor(me, owner)]);
 
   const bucket = (d: string | null) => {
     const n = daysFromToday(d);
@@ -67,6 +68,51 @@ export default async function TasksPage({
           </button>
         </form>
       </div>
+
+      {(questions.toAnswer.length > 0 || questions.asked.length > 0) && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Card title="Questions for you" count={questions.toAnswer.length} testId="questions-to-answer">
+            {questions.toAnswer.length === 0 ? (
+              <Empty>Nothing waiting on you.</Empty>
+            ) : (
+              <ul className="divide-y divide-[var(--line)]">
+                {questions.toAnswer.map((q) => (
+                  <li key={q.id} className="py-2">
+                    <Link href={`/deals/${q.deal_id}#q-${q.id}`} className="text-[13px] font-medium hover:underline">
+                      {q.body}
+                    </Link>
+                    <p className="text-[12px] text-[var(--ink-muted)]">
+                      {q.asked_by ?? 'Someone'} · {q.client_name} · {q.deal_title} · {relativeAge(q.created_at)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+          <Card title="Questions you asked" count={questions.asked.length} testId="questions-asked">
+            {questions.asked.length === 0 ? (
+              <Empty>None open.</Empty>
+            ) : (
+              <ul className="divide-y divide-[var(--line)]">
+                {questions.asked.map((q) => (
+                  <li key={q.id} className="py-2">
+                    <Link href={`/deals/${q.deal_id}#q-${q.id}`} className="text-[13px] font-medium hover:underline">
+                      {q.body}
+                    </Link>
+                    <p className="text-[12px] text-[var(--ink-muted)]">
+                      {q.status === 'answered' ? (
+                        <span className="text-[var(--accent-ink)]">Answered: {q.last_reply?.slice(0, 120)}</span>
+                      ) : (
+                        <>Waiting on {q.asked_to ?? 'the team'} · {relativeAge(q.created_at)}</>
+                      )}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+      )}
 
       <Card title="Add a task">
         <AddTaskForm people={people} />
@@ -125,4 +171,9 @@ export default async function TasksPage({
       )}
     </div>
   );
+}
+
+function relativeAge(at: string) {
+  const days = Math.floor((Date.now() - new Date(at).getTime()) / 86400000);
+  return days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
 }

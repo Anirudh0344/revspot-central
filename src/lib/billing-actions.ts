@@ -5,6 +5,8 @@ import { requireProfile, asActor } from './auth';
 import { query, write, readableError } from './db';
 import { disconnectMailbox, sendMail, sendingAccount } from './gmail';
 import type { Result } from './actions';
+import { alertPayment } from './alerts';
+import { runDaily, runMailSync } from './jobs';
 
 const ok = (id?: string): Result => ({ ok: true, id });
 const fail = (e: unknown): Result => ({ ok: false, error: readableError(e) });
@@ -173,6 +175,7 @@ export async function recordPaymentAction(id: string, f: FormData): Promise<Resu
       `update billing_reminders set status = 'skipped', error = 'Payment recorded before it was sent'
         where invoice_id = $1 and status = 'queued'
           and (select balance from bill_view where id = $1) <= 0`, [id]);
+    await alertPayment(id, amount).catch(() => {});
     const r = await billRefs(id);
     refresh(r.deal_id, r.client_id);
     return ok();
@@ -316,6 +319,47 @@ export async function disconnectMailboxAction(id: string): Promise<Result> {
   try {
     await disconnectMailbox(id);
     revalidatePath('/settings');
+    return ok();
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/* ------------------------------------------------------------ scheduled jobs */
+
+export async function syncMailNowAction(): Promise<Result> {
+  const me = await requireProfile();
+  if (me.role === 'viewer') return { ok: false, error: 'Viewers cannot run a sync.' };
+  try {
+    const out = await runMailSync();
+    revalidatePath('/settings');
+    const logged = out.reduce((s, r) => s + r.logged, 0);
+    const errors = out.filter((r) => r.error).map((r) => `${r.mailbox}: ${r.error}`);
+    if (errors.length) return { ok: false, error: errors.join(' · ') };
+    return ok(String(logged));
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function runDailyNowAction(): Promise<Result> {
+  const me = await requireProfile();
+  if (me.role !== 'admin') return { ok: false, error: 'Only an admin can run the daily jobs by hand.' };
+  try {
+    await runDaily();
+    revalidatePath('/settings');
+    revalidatePath('/finance');
+    return ok();
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function markReplySeenAction(id: string): Promise<Result> {
+  const me = await requireProfile();
+  try {
+    await write(asActor(me), 'Reply seen', 'update billing_reminders set reply_seen_at = now() where id = $1', [id]);
+    revalidatePath('/finance');
     return ok();
   } catch (e) {
     return fail(e);

@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { currentProfile } from '@/lib/auth';
-import { financeOverview, remindersFor } from '@/lib/billing';
+import { financeOverview, remindersFor, unseenReplies } from '@/lib/billing';
+import { markReplySeenAction } from '@/lib/billing-actions';
 import { sendingAccount } from '@/lib/gmail';
 import { inr, istDate, istDateTime } from '@/lib/format';
 import { Badge, Card, CategoryTag, Code, Empty } from '@/components/ui';
 import { BillList, Money } from '@/components/billing-view';
-import { QueueRemindersButton, ReminderCard } from '@/components/billing';
+import { QueueRemindersButton, ReminderCard, RunButton } from '@/components/billing';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,7 @@ export default async function FinancePage({
     view === 'sent' ? remindersFor(me, { status: 'sent', limit: 50 }) : Promise.resolve([]),
     sendingAccount(),
   ]);
-  const failed = await remindersFor(me, { status: 'failed' });
+  const [failed, replies] = await Promise.all([remindersFor(me, { status: 'failed' }), unseenReplies(me)]);
 
   const toCollect = open.filter((b) => ['pi_sent', 'po_received', 'partially_paid', 'draft'].includes(b.step));
   const tiDue = open.filter((b) => b.step === 'paid');
@@ -185,6 +186,27 @@ export default async function FinancePage({
             ))}
         </div>
 
+        <div className="space-y-5">
+        {replies.length > 0 && (
+          <Card title="Client replied" count={replies.length} testId="client-replies">
+            <ul className="divide-y divide-[var(--line)]">
+              {replies.map((r) => (
+                <li key={r.id} className="py-2.5 first:pt-0 last:pb-0 text-[13px]">
+                  <Link href={`/deals/${r.deal_id}`} className="font-medium hover:underline">
+                    {r.client_name} · {r.pi_number ?? 'PI'}
+                  </Link>
+                  <p className="text-[12px] text-[var(--ink-faint)]">
+                    {istDateTime(r.replied_at)} · {inr(r.balance)} due
+                  </p>
+                  <p className="mt-1 text-[12px] text-[var(--ink-muted)]">&ldquo;{r.reply_snippet}&rdquo;</p>
+                  <div className="mt-1.5">
+                    <RunButton run={markReplySeenAction.bind(null, r.id)} label="Seen" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
         <Card
           title="Reminders"
           count={waiting.length}
@@ -215,6 +237,7 @@ export default async function FinancePage({
             </ul>
           )}
         </Card>
+        </div>
       </div>
     </div>
   );

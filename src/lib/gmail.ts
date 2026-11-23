@@ -10,9 +10,10 @@ import { open, seal } from './secret';
   signed-in role, and are encrypted at rest (see secret.ts).
 */
 
-export type Purpose = 'send' | 'read';
+export type Purpose = 'send' | 'read' | 'signin';
 
 const SCOPES: Record<Purpose, string[]> = {
+  signin: ['openid', 'email', 'profile'],
   send: [
     'openid',
     'email',
@@ -43,8 +44,13 @@ export function authUrl(purpose: Purpose, state: string, loginHint?: string): st
   u.searchParams.set('redirect_uri', redirectUri());
   u.searchParams.set('response_type', 'code');
   u.searchParams.set('scope', SCOPES[purpose].join(' '));
-  u.searchParams.set('access_type', 'offline');
-  u.searchParams.set('prompt', 'consent');
+  if (purpose === 'signin') {
+    u.searchParams.set('prompt', 'select_account');
+  } else {
+    // Mailboxes need a refresh token, which Google only returns with consent.
+    u.searchParams.set('access_type', 'offline');
+    u.searchParams.set('prompt', 'consent');
+  }
   u.searchParams.set('state', state);
   const domain = process.env.ALLOWED_EMAIL_DOMAIN;
   if (domain) u.searchParams.set('hd', domain);
@@ -134,7 +140,7 @@ export async function disconnectMailbox(id: string) {
   await query(null, `update mail_accounts set status = 'disconnected', can_send = false, updated_at = now() where id = $1`, [id]);
 }
 
-async function accessToken(accountId: string): Promise<string> {
+export async function accessToken(accountId: string): Promise<string> {
   const rows = await query<{ refresh_token_enc: string; access_token_enc: string | null; fresh: boolean }>(
     null,
     `select refresh_token_enc, access_token_enc, coalesce(expires_at > now(), false) as fresh
@@ -209,4 +215,18 @@ export async function sendMail(
   const json = (await res.json()) as { id?: string; threadId?: string; error?: { message?: string } };
   if (!res.ok || !json.id) throw new Error(json.error?.message ?? `Gmail refused the message (${res.status})`);
   return { id: json.id, threadId: json.threadId ?? json.id };
+}
+
+/** Google sign-in: returns the verified address and name, or throws. */
+export async function signInWithCode(code: string): Promise<{ email: string; name: string | null }> {
+  const t = await tokenRequest({ code, grant_type: 'authorization_code', redirect_uri: redirectUri() });
+  const who = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+    headers: { authorization: `Bearer ${t.access_token}` },
+  });
+  const info = (await who.json()) as { email?: string; email_verified?: boolean; name?: string; hd?: string };
+  if (!info.email || info.email_verified === false) throw new Error('Google did not confirm this email address.');
+  const domain = (process.env.ALLOWED_EMAIL_DOMAIN ?? 'revspot.ai').toLowerCase();
+  const email = info.email.toLowerCase();
+  if (!email.endsWith('@' + domain)) throw new Error(`Sign in with your @${domain} account.`);
+  return { email, name: info.name ?? null };
 }

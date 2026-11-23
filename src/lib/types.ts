@@ -52,6 +52,7 @@ export type DealRow = {
   checkin_due_at: string | null;
   last_client_interaction_at: string | null;
   archived_at: string | null;
+  created_at: string;
   sc_business_outcome: string | null;
   sc_targets: string | null;
   sc_leading_indicators: string | null;

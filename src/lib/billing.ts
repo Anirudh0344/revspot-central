@@ -141,6 +141,8 @@ export type MailAccount = {
   last_error: string | null;
   connected_at: string;
   connected_by_name: string | null;
+  last_synced_at: string | null;
+  last_sync_count: number | null;
 };
 
 const BILL_ORDER = `order by
@@ -255,8 +257,30 @@ export async function mailAccounts(me: Profile) {
   return query<MailAccount>(
     asActor(me),
     `select m.id, m.email, m.can_send, m.can_read, m.status, m.last_error, m.connected_at,
-            p.name as connected_by_name
+            p.name as connected_by_name, m.last_synced_at, m.last_sync_count
        from mail_accounts m left join profiles p on p.id = m.connected_by
       order by m.can_send desc, m.email`,
+  );
+}
+
+export type Reply = {
+  id: string;
+  replied_at: string;
+  reply_snippet: string | null;
+  subject: string;
+  client_name: string;
+  deal_id: string;
+  pi_number: string | null;
+  balance: string;
+};
+
+/** Clients who wrote back on a reminder and nobody has looked yet. */
+export async function unseenReplies(me: Profile) {
+  return query<Reply>(
+    asActor(me),
+    `select r.id, r.replied_at, r.reply_snippet, r.subject, bv.client_name, bv.deal_id, bv.pi_number, bv.balance
+       from billing_reminders r join bill_view bv on bv.id = r.invoice_id
+      where r.replied_at is not null and r.reply_seen_at is null
+      order by r.replied_at desc`,
   );
 }
