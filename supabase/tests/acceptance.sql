@@ -63,8 +63,21 @@ values ('00000000-0000-0000-0000-00000000d001','GPL-PS','00000000-0000-0000-0000
         '00000000-0000-0000-0000-00000000a002');
 
 select expect_fail(
-  $$update deals set stage='kickoff' where id='00000000-0000-0000-0000-00000000d001'$$,
-  'missing sc_business_outcome');
+  $$update deals set stage='agent_request' where id='00000000-0000-0000-0000-00000000d001'$$,
+  'Answer whether a CRM integration is required');
+update deals set crm_required = true where id='00000000-0000-0000-0000-00000000d001';
+select expect_fail(
+  $$update deals set stage='agent_request' where id='00000000-0000-0000-0000-00000000d001'$$,
+  'move it to CRM integration initiated first');
+update deals set stage='crm_integration' where id='00000000-0000-0000-0000-00000000d001';
+select expect((select crm_started_at is not null from deals where id='00000000-0000-0000-0000-00000000d001'),
+  'CRM-1 a pilot that needs a CRM goes through CRM integration first, and it is timed');
+update deals set stage='agent_request' where id='00000000-0000-0000-0000-00000000d001';
+update deals set stage='agent_testing' where id='00000000-0000-0000-0000-00000000d001';
+select expect_fail(
+  $$update deals set stage='customer_testing', start_date=current_date - 20
+     where id='00000000-0000-0000-0000-00000000d001'$$,
+  'sc_business_outcome');
 
 select expect_fail(
   $$update deals set health='green', health_reason='looks fine'
@@ -84,18 +97,18 @@ update deals set
   sc_decision_statement='Convert to a 6-month retainer if QLs clear 400'
 where id='00000000-0000-0000-0000-00000000d001';
 
-update deals set stage='kickoff' where id='00000000-0000-0000-0000-00000000d001';
-select expect((select stage from deals where id='00000000-0000-0000-0000-00000000d001')='kickoff',
-  'DL-4 move to kickoff succeeds once criteria are complete');
+update deals set stage='customer_testing', start_date=current_date - 20
+ where id='00000000-0000-0000-0000-00000000d001';
+select expect((select stage from deals where id='00000000-0000-0000-0000-00000000d001')='customer_testing',
+  'DL-4 customer testing opens once the criteria are complete');
 
 update deals set health='green', health_reason='Pilot tracking at 110% of plan'
  where id='00000000-0000-0000-0000-00000000d001';
 select expect((select count(*) from health_history where deal_id='00000000-0000-0000-0000-00000000d001')=1,
   'DL-9 health change writes health_history');
 
-update deals set stage='setup' where id='00000000-0000-0000-0000-00000000d001';
-update deals set stage='live', start_date=current_date - 20 where id='00000000-0000-0000-0000-00000000d001';
-update deals set stage='readout', end_date=current_date + 5 where id='00000000-0000-0000-0000-00000000d001';
+update deals set stage='feedback_1', end_date=current_date + 5 where id='00000000-0000-0000-0000-00000000d001';
+update deals set stage='feedback_2' where id='00000000-0000-0000-0000-00000000d001';
 
 select expect_fail(
   $$update deals set stage='stopped' where id='00000000-0000-0000-0000-00000000d001'$$,
@@ -350,7 +363,7 @@ reset role;
 select set_config('app.actor','00000000-0000-0000-0000-00000000a001', false);
 select expect((select count(*) from playbook_runs r join playbooks p on p.id = r.playbook_id
                 where r.deal_id='00000000-0000-0000-0000-00000000d001' and p.name='Pilot kickoff call')=1,
-  'PB-1 entering Kickoff starts the kickoff playbook by itself');
+  'PB-1 handing over a pilot starts the kickoff playbook by itself');
 select expect((select count(*) from tasks t join playbook_runs r on r.id = t.playbook_run_id
                 where r.deal_id='00000000-0000-0000-0000-00000000d001')=3,
   'PB-2 the playbook creates its three tasks');
@@ -374,12 +387,16 @@ select set_config('app.actor','00000000-0000-0000-0000-00000000a001', false);
 insert into deals (id, client_id, title, category, stage, next_step, next_step_due)
 values ('00000000-0000-0000-0000-00000000d0f1','00000000-0000-0000-0000-00000000c001',
         'Ownerless pilot','pilot','handover','Book kickoff', current_date + 2);
+update deals set crm_required = false where id='00000000-0000-0000-0000-00000000d0f1';
 select expect_fail(
-  $$update deals set stage='setup' where id='00000000-0000-0000-0000-00000000d0f1'$$,
+  $$update deals set stage='crm_integration' where id='00000000-0000-0000-0000-00000000d0f1'$$,
+  'not needing a CRM integration');
+select expect_fail(
+  $$update deals set stage='agent_request' where id='00000000-0000-0000-0000-00000000d0f1'$$,
   'Set an owner');
-update deals set intern_owner='00000000-0000-0000-0000-00000000a001', stage='setup'
+update deals set intern_owner='00000000-0000-0000-0000-00000000a001', stage='agent_request'
  where id='00000000-0000-0000-0000-00000000d0f1';
-select expect((select stage from deals where id='00000000-0000-0000-0000-00000000d0f1')='setup',
+select expect((select stage from deals where id='00000000-0000-0000-0000-00000000d0f1')='agent_request',
   'PL-1 a pilot moves past handover once it has an owner, and an admin can own it');
 select expect_fail(
   $$update deals set blocked_on='client' where id='00000000-0000-0000-0000-00000000d0f1'$$,

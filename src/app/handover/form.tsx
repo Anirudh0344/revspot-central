@@ -73,6 +73,13 @@ export function HandoverForm({
               ))}
           </select>
         </L>
+        <L label="CRM integration required?">
+          <select name="crm_required" className={input} defaultValue="" required data-testid="crm-required">
+            <option value="" disabled>Choose…</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </L>
         <L label="Pilot start">
           <input name="start_date" type="date" className={input} />
         </L>

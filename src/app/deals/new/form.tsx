@@ -101,6 +101,13 @@ export function NewDealForm({
               ))}
           </select>
         </L>
+        <L label="CRM integration required?">
+          <select name="crm_required" className={input} defaultValue="" required data-testid="crm-required">
+            <option value="" disabled>Choose…</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </L>
         <L label="Next step">
           <input name="next_step" className={input} data-testid="deal-next-step" />
         </L>

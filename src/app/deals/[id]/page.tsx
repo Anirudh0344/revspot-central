@@ -25,7 +25,7 @@ import { playbooksFor, runsForDeal } from '@/lib/playbooks';
 import { RunPanel, StartPlaybook } from '@/components/playbooks';
 import { dealTimeline, BLOCKER_LABEL } from '@/lib/timeline';
 import { Timeline } from '@/components/timeline';
-import { AskForm, AskLink, BlockerForm } from '@/components/questions';
+import { AskForm, AskLink, BlockerForm, CrmToggle } from '@/components/questions';
 import { query } from '@/lib/db';
 import { asActor } from '@/lib/auth';
 
@@ -128,9 +128,12 @@ export default async function DealPage({
             </Link>
           </div>
         </div>
-        <dl className="mt-3.5 grid gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+        <dl className="mt-3.5 grid gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-7">
           <Field label="Owner">
             {deal.intern_owner_name ?? <span className="font-medium text-[var(--red)]">No owner</span>}
+          </Field>
+          <Field label="CRM integration required?">
+            <CrmToggle dealId={deal.id} value={deal.crm_required} />
           </Field>
           <Field label="Product">{deal.product ?? '—'}</Field>
           <Field label="Term">{deal.term_months ? `${deal.term_months} months` : '—'}</Field>

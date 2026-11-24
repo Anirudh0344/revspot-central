@@ -210,6 +210,14 @@ export function DealCard({ deal, compact, flags }: { deal: DealRow; compact?: bo
                 <span className={deal.intern_owner_name ? 'text-[var(--ink)]' : 'font-medium text-[var(--red)]'}>
                   {deal.intern_owner_name ?? 'No owner'}
                 </span>
+                {deal.category === 'pilot' && (
+                  <span
+                    className={`rounded px-1 ${deal.crm_required === null ? 'bg-[var(--amber-soft)] text-[var(--amber)]' : 'bg-[var(--tag-bg)] text-[var(--ink-muted)]'}`}
+                    title="CRM integration required?"
+                  >
+                    CRM {deal.crm_required === null ? '?' : deal.crm_required ? 'yes' : 'no'}
+                  </span>
+                )}
                 {flags.questions > 0 && (
                   <span className="ml-auto rounded bg-[var(--amber-soft)] px-1 text-[var(--amber)]">
                     {flags.questions} {flags.questions === 1 ? 'question' : 'questions'}

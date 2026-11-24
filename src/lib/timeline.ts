@@ -77,10 +77,11 @@ const FIELD: Record<string, string> = {
   sc_business_outcome: 'business outcome', sc_targets: 'targets', sc_leading_indicators: 'leading indicators',
   sc_judged_by: 'judged by', sc_failure_line: 'failure line', sc_decision_statement: 'decision statement',
   billing_account_id: 'bill-to party', projects: 'projects', parent_deal_id: 'parent deal',
+  crm_required: 'CRM integration required',
 };
 const QUIET = new Set([
   'stage_entered_at', 'health_updated_at', 'blocked_since', 'closed_at', 'won_at', 'id', 'client_id',
-  'stage', 'health', 'archived_at', 'archive_reason', 'created_by', 'updated_by',
+  'stage', 'health', 'archived_at', 'archive_reason', 'created_by', 'updated_by', 'crm_started_at',
 ]);
 const MONEY = new Set(['monthly_value', 'contract_value', 'amount', 'total']);
 
@@ -145,7 +146,8 @@ export async function dealTimeline(me: Profile, dealId: string) {
   const taskTitle = new Map(tasks.map((t) => [t.id, t.title]));
   const billName = new Map(bills.map((b) => [b.id, b.pi_number ? `PI ${b.pi_number}` : 'a bill']));
   const stageLabel = (cat: string | undefined, key: unknown) =>
-    stages.find((s) => s.key === key && (!cat || s.category === cat))?.label ?? String(key ?? '—');
+    stages.find((s) => s.key === key && (!cat || s.category === cat))?.label ??
+    RETIRED_STAGES[String(key)] ?? String(key ?? '—');
 
   const now = Date.now();
   const items: TimelineItem[] = [];
@@ -201,6 +203,7 @@ export async function dealTimeline(me: Profile, dealId: string) {
   const val = (k: string, v: unknown): string => {
     if (v === null || v === undefined || v === '') return '—';
     if (MONEY.has(k)) return inr(v as string);
+    if (typeof v === 'boolean') return v ? 'Yes' : 'No';
     if (k === 'intern_owner' || k === 'owner') return nameOf.get(String(v)) ?? '—';
     if (/_date$|_due$/.test(k)) return istDate(String(v));
     if (Array.isArray(v)) return v.join(', ');
@@ -301,6 +304,14 @@ export async function dealTimeline(me: Profile, dealId: string) {
   for (const i of items) counts[i.kind]++;
   return { items, upcoming, counts };
 }
+
+// Pilot stages that no longer exist, so older history still reads well.
+const RETIRED_STAGES: Record<string, string> = {
+  kickoff: 'Kickoff (old stage)',
+  setup: 'Setup (old stage)',
+  live: 'Live (old stage)',
+  readout: 'Readout (old stage)',
+};
 
 export const BLOCKER_LABEL: Record<string, string> = {
   us: 'us',

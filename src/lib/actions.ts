@@ -19,6 +19,11 @@ const str = (f: FormData, k: string): string | null => {
   const t = v.trim();
   return t === '' ? null : t;
 };
+/** 'yes' / 'no' from a select; null when not answered. */
+const yesNo = (f: FormData, k: string): boolean | null => {
+  const v = str(f, k);
+  return v === 'yes' ? true : v === 'no' ? false : null;
+};
 const num = (f: FormData, k: string): number | null => {
   const v = str(f, k);
   if (v === null) return null;
@@ -140,6 +145,7 @@ export async function createDealAction(f: FormData): Promise<Result> {
   const category = str(f, 'category');
   if (!clientId || !title || !category)
     return { ok: false, error: 'Client, title and category are required.' };
+  if (yesNo(f, 'crm_required') === null) return { ok: false, error: 'Say whether a CRM integration is required.' };
   try {
     const stage =
       str(f, 'stage') ??
@@ -166,9 +172,9 @@ export async function createDealAction(f: FormData): Promise<Result> {
                           contract_value, start_date, end_date, next_step, next_step_due,
                           intern_owner, context_doc_url,
                           sc_business_outcome, sc_targets, sc_leading_indicators,
-                          sc_judged_by, sc_failure_line, sc_decision_statement)
+                          sc_judged_by, sc_failure_line, sc_decision_statement, crm_required)
        values ($1,$2,$3,$4,$5,$6::deal_category,$7,$8,$9::commercial_model,$10,$11,$12,$13,$14,
-               $15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+               $15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
        returning id`,
       [clientId, str(f, 'code'), title, str(f, 'product'),
        str(f, 'projects')?.split(',').map((s) => s.trim()).filter(Boolean) ?? null,
@@ -177,7 +183,8 @@ export async function createDealAction(f: FormData): Promise<Result> {
        str(f, 'start_date'), str(f, 'end_date'), str(f, 'next_step'), str(f, 'next_step_due'),
        str(f, 'intern_owner'), str(f, 'context_doc_url'),
        str(f, 'sc_business_outcome'), str(f, 'sc_targets'), str(f, 'sc_leading_indicators'),
-       str(f, 'sc_judged_by'), str(f, 'sc_failure_line'), str(f, 'sc_decision_statement')],
+       str(f, 'sc_judged_by'), str(f, 'sc_failure_line'), str(f, 'sc_decision_statement'),
+       yesNo(f, 'crm_required')],
     );
     revalidatePath('/deals');
     revalidatePath(`/clients/${clientId}`);
@@ -207,6 +214,7 @@ export async function updateDealAction(id: string, f: FormData): Promise<Result>
   for (const k of DEAL_DATE_FIELDS) if (f.has(k)) push(k, str(f, k), '::date');
   for (const k of DEAL_NUM_FIELDS) if (f.has(k)) push(k, num(f, k));
   if (f.has('intern_owner')) push('intern_owner', str(f, 'intern_owner'), '::uuid');
+  if (f.has('crm_required')) push('crm_required', yesNo(f, 'crm_required'), '::boolean');
   if (f.has('commercial_model')) push('commercial_model', str(f, 'commercial_model'), '::commercial_model');
   if (f.has('projects'))
     push('projects', str(f, 'projects')?.split(',').map((s) => s.trim()).filter(Boolean) ?? null, '::text[]');
@@ -454,6 +462,7 @@ export async function createHandoverAction(f: FormData): Promise<Result> {
   const clientId = str(f, 'client_id');
   const title = str(f, 'title');
   if (!clientId || !title) return { ok: false, error: 'Client and deal title are required.' };
+  if (yesNo(f, 'crm_required') === null) return { ok: false, error: 'Say whether a CRM integration is required.' };
   const notes = [
     str(f, 'promises') ? `Promises: ${str(f, 'promises')}` : null,
     str(f, 'dependencies') ? `Dependencies: ${str(f, 'dependencies')}` : null,
@@ -465,17 +474,17 @@ export async function createHandoverAction(f: FormData): Promise<Result> {
       `insert into deals (client_id, title, product, projects, category, stage,
                           commercial_model, monthly_value, conversion_price,
                           start_date, end_date, next_step, next_step_due, intern_owner,
-                          sc_business_outcome, sc_judged_by, handover_notes)
+                          sc_business_outcome, sc_judged_by, handover_notes, crm_required)
        values ($1,$2,$3,$4,'pilot','handover',$5::commercial_model,$6,$7,$8::date,$9::date,
                coalesce($10,'Book kickoff with the decision maker'),
-               coalesce($11::date, current_date + 3),$12,$13,$14,$15)
+               coalesce($11::date, current_date + 3),$12,$13,$14,$15,$16)
        returning id`,
       [clientId, title, str(f, 'product'),
        str(f, 'projects')?.split(',').map((s) => s.trim()).filter(Boolean) ?? null,
        str(f, 'commercial_model'), num(f, 'monthly_value'), num(f, 'conversion_price'),
        str(f, 'start_date'), str(f, 'end_date'), str(f, 'next_step'), str(f, 'next_step_due'),
        str(f, 'intern_owner'), str(f, 'sc_business_outcome'), str(f, 'sc_judged_by'),
-       notes || null],
+       notes || null, yesNo(f, 'crm_required')],
     );
     revalidatePath('/boards/pilot');
     return ok(rows[0].id);
@@ -486,7 +495,7 @@ export async function createHandoverAction(f: FormData): Promise<Result> {
 
 /* ------------------------------------------------- extend a pilot, renew a deal */
 
-/** An extended pilot is a live pilot with a new end date; there is no Extended stage. */
+/** An extended pilot keeps its stage and gets a new end date; there is no Extended stage. */
 export async function extendPilotAction(id: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
   const endDate = str(f, 'end_date');
@@ -495,7 +504,7 @@ export async function extendPilotAction(id: string, f: FormData): Promise<Result
   if (!reason) return { ok: false, error: 'Extending a pilot needs a reason.' };
   try {
     await write(asActor(me), `Pilot extended to ${endDate}: ${reason}`,
-      `update deals set stage = 'live', end_date = $1::date
+      `update deals set end_date = $1::date
         where id = $2 and category = 'pilot'`,
       [endDate, id]);
     revalidatePath(`/deals/${id}`);

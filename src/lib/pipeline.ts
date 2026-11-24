@@ -44,6 +44,8 @@ function reasonsFor(d: DealRow, s: Signal | null): Reason[] {
   if (idle !== null && idle >= QUIET_DAYS) out.push({ key: 'quiet', severity: idle >= QUIET_DAYS * 2 ? 'red' : 'amber', text: `Nothing logged for ${idle} days` });
   const q = daysSince(s?.oldest_open_question_at ?? null);
   if (q !== null && q >= QUESTION_DAYS) out.push({ key: 'question', severity: 'amber', text: `A question unanswered for ${q} days` });
+  if (d.category === 'pilot' && d.crm_required === null)
+    out.push({ key: 'crm', severity: 'amber', text: 'CRM integration required? Not answered' });
   if (d.health === 'red') out.push({ key: 'health', severity: 'red', text: `Health red${d.health_reason ? `: ${d.health_reason}` : ''}` });
   return out;
 }
@@ -125,6 +127,11 @@ export async function pipeline(me: Profile, f: PipelineFilters) {
       stuck: stuck.length,
       noOwner: all.filter((d) => !d.intern_owner).length,
       questions: all.reduce((n, d) => n + (d.signal?.open_questions ?? 0), 0),
+      crmNeeded: all.filter((d) => d.category === 'pilot' && d.crm_required).length,
+      crmUnanswered: all.filter((d) => d.category === 'pilot' && d.crm_required === null).length,
+      inCrm: all.filter((d) => d.stage === 'crm_integration').length,
+      testing: all.filter((d) => d.stage === 'agent_testing' || d.stage === 'customer_testing').length,
+      feedback: all.filter((d) => d.stage.startsWith('feedback_')).length,
     },
     outcomes: {
       started: o.started,
@@ -158,4 +165,5 @@ const REASON_LABEL: Record<string, string> = {
   quiet: `Nothing logged for ${QUIET_DAYS}+ days`,
   question: 'Unanswered question',
   health: 'Health red',
+  crm: 'CRM question not answered',
 };

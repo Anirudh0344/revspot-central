@@ -53,6 +53,11 @@ export type DealRow = {
   last_client_interaction_at: string | null;
   archived_at: string | null;
   created_at: string;
+  crm_required: boolean | null;
+  crm_started_at: string | null;
+  blocked_on: string | null;
+  blocker_note: string | null;
+  blocked_since: string | null;
   sc_business_outcome: string | null;
   sc_targets: string | null;
   sc_leading_indicators: string | null;

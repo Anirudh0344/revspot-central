@@ -32,6 +32,8 @@ insert into contacts (client_id, name, title, email, phone, role) values
   ('aaaaaaa1-0000-4000-8000-000000000005','Deepak Rane','AVP Marketing','deepak.rane@hiranandani.com',null,'other');
 
 -- GPL's three deals: a live retention engagement, a pilot and an expansion.
+-- Demo pilots start mid-pipeline, so skip the CRM rule for the load and answer it after.
+alter table deals disable trigger deals_crm_trg;
 insert into deals (id, code, client_id, title, product, projects, category, stage,
                    commercial_model, term_months, monthly_value, contract_value,
                    start_date, end_date, health, health_reason,
@@ -50,7 +52,7 @@ insert into deals (id, code, client_id, title, product, projects, category, stag
    'Send the month-2 readout deck', current_date + 2,'22222222-2222-2222-2222-222222222222'),
 
   ('bbbbbbb1-0000-4000-8000-000000000002','GPL-DATA','aaaaaaa1-0000-4000-8000-000000000001',
-   'GPL Data enrichment','Data','{Epoque}','pilot','live',
+   'GPL Data enrichment','Data','{Epoque}','pilot','customer_testing',
    'per_record',1,120000,120000,
    current_date - 18, current_date + 9,'amber','Match rate at 61% against a 70% line',
    'A buyer list the pre-sales team can actually call',
@@ -90,7 +92,7 @@ insert into deals (code, client_id, title, product, projects, category, stage,
    '33333333-3333-3333-3333-333333333333'),
 
   ('PRE-AQ','aaaaaaa1-0000-4000-8000-000000000003','Prestige Agentic Qualification',
-   'Agentic Qualification','{Falcon City}','pilot','readout',
+   'Agentic Qualification','{Falcon City}','pilot','feedback_1',
    'per_ql',1,180000, current_date - 32, current_date + 4,'green',
    'Pilot closed at 112% of the QL target',
    'Replace the first-call qualification team',
@@ -102,7 +104,7 @@ insert into deals (code, client_id, title, product, projects, category, stage,
    '22222222-2222-2222-2222-222222222222'),
 
   ('SQY-VOICE','aaaaaaa1-0000-4000-8000-000000000004','Square Yards Voice pilot','Voice AI','{Gurugram}',
-   'pilot','setup','per_minute',1,60000, current_date - 6, current_date + 24, null, null,
+   'pilot','agent_testing','per_minute',1,60000, current_date - 6, current_date + 24, null, null,
    'Qualify inbound portal leads within 5 minutes',
    '2,000 minutes, 300 qualified leads',null,
    'Nikhil Bansal, Regional Head',null,null,
@@ -143,3 +145,6 @@ insert into interactions (deal_id, client_id, channel, occurred_at, participants
    'Agree the credit note with finance','inbound','33333333-3333-3333-3333-333333333333');
 
 commit;
+
+alter table deals enable trigger deals_crm_trg;
+update deals set crm_required = false where category = 'pilot' and crm_required is null;

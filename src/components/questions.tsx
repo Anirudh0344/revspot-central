@@ -1,7 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { askQuestionAction, setBlockerAction } from '@/lib/question-actions';
+import { updateDealAction } from '@/lib/actions';
 import { ActionForm, input } from './forms';
 
 export const ANCHOR_OPTIONS: { key: string; label: string }[] = [
@@ -118,5 +121,50 @@ export function BlockerForm({
         <input name="blocker_note" defaultValue={note ?? ''} className={`${input} mt-1`} placeholder="e.g. Waiting for the lead list from their CRM" data-testid="blocker-note" />
       </label>
     </ActionForm>
+  );
+}
+
+/** The CRM question, answered in one click wherever the deal is shown. */
+export function CrmToggle({ dealId, value }: { dealId: string; value: boolean | null }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const choose = (v: 'yes' | 'no') =>
+    start(async () => {
+      const f = new FormData();
+      f.set('crm_required', v);
+      const res = await updateDealAction(dealId, f);
+      if (res.ok) {
+        setError(null);
+        router.refresh();
+      } else setError(res.error);
+    });
+  const opt = (v: 'yes' | 'no', label: string) => {
+    const on = (v === 'yes' && value === true) || (v === 'no' && value === false);
+    return (
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => choose(v)}
+        aria-pressed={on}
+        data-testid={`crm-${v}`}
+        className={`px-2.5 py-0.5 text-[12px] transition ${
+          on ? 'bg-[var(--accent)] font-medium text-[var(--on-accent)]' : 'text-[var(--ink-muted)] hover:bg-[var(--accent-50)]'
+        }`}
+      >
+        {label}
+      </button>
+    );
+  };
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <span className="inline-flex overflow-hidden rounded-md border border-[var(--line-strong)]" role="group" aria-label="CRM integration required">
+        {opt('yes', 'Yes')}
+        <span className="w-px bg-[var(--line-strong)]" />
+        {opt('no', 'No')}
+      </span>
+      {value === null && <span className="text-[12px] font-medium text-[var(--red)]">Not answered</span>}
+      {error && <span className="text-[12px] text-[var(--red)]">{error}</span>}
+    </span>
   );
 }

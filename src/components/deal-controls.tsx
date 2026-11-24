@@ -37,7 +37,7 @@ export function DealControls({ deal, stages }: { deal: DealRow; stages: Stage[] 
             <Disclosure label="Convert to retention" testId="convert-pilot">
               <ConvertPilotForm deal={deal} />
             </Disclosure>
-            {['live', 'readout'].includes(deal.stage) && (
+            {(deal.stage === 'customer_testing' || deal.stage.startsWith('feedback_')) && (
               <Disclosure label="Extend pilot" testId="extend-pilot">
                 <ExtendPilotForm deal={deal} />
               </Disclosure>
