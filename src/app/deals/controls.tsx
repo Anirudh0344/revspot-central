@@ -69,6 +69,7 @@ type FilterValues = {
   client?: string;
   q?: string;
   view: string;
+  month: string;
 };
 
 export function Filters({
@@ -93,6 +94,7 @@ export function Filters({
   function submit(form: FormData) {
     const u = new URLSearchParams();
     if (values.view !== 'all') u.set('view', values.view);
+    u.set('month', values.month);
     for (const [k, v] of form.entries()) {
       if (typeof v === 'string' && v.trim()) u.set(k, v.trim());
     }
@@ -130,7 +132,7 @@ export function Filters({
         </button>
         {active > 0 && (
           <Link
-            href={values.view === 'all' ? '/deals' : `/deals?view=${values.view}`}
+            href={`/deals?${values.view === 'all' ? '' : `view=${values.view}&`}month=${values.month}`}
             className="text-[12px] text-[var(--ink-faint)] underline-offset-2 hover:underline"
           >
             Clear
@@ -206,5 +208,47 @@ function Select({
         ))}
       </select>
     </label>
+  );
+}
+
+/** One chip per month, newest first, plus "All time". Keeps the other filters. */
+export function MonthPicker({ months, current }: { months: string[]; current: string }) {
+  const sp = useSearchParams();
+  const hrefFor = (m: string) => {
+    const u = new URLSearchParams(sp.toString());
+    u.delete('page');
+    u.set('month', m);
+    return `/deals?${u}`;
+  };
+  const label = (m: string) => {
+    const [y, mo] = m.split('-').map(Number);
+    const d = new Date(Date.UTC(y, mo - 1, 1));
+    const sameYear = y === new Date().getUTCFullYear();
+    return new Intl.DateTimeFormat('en-IN', { month: 'short', year: sameYear ? undefined : 'numeric', timeZone: 'UTC' }).format(d);
+  };
+  const chip = (key: string, text: string) => {
+    const active = key === current;
+    return (
+      <Link
+        key={key}
+        href={hrefFor(key)}
+        aria-current={active ? 'true' : undefined}
+        data-testid={`month-${key}`}
+        className={`shrink-0 whitespace-nowrap rounded-md border px-2.5 py-1 text-[12px] transition ${
+          active
+            ? 'border-[var(--ink)] bg-[var(--accent-100)] font-medium text-[var(--accent-deep)]'
+            : 'border-[var(--line)] text-[var(--ink-muted)] hover:border-[var(--accent-200)] hover:bg-[var(--accent-50)]'
+        }`}
+      >
+        {text}
+      </Link>
+    );
+  };
+  return (
+    <div className="scroll-x flex max-w-full items-center gap-1.5 overflow-x-auto" data-testid="month-picker">
+      <span className="t-label mr-1 shrink-0">Added in</span>
+      {[...months].reverse().map((m) => chip(m, label(m)))}
+      {chip('all', 'All time')}
+    </div>
   );
 }

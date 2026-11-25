@@ -69,6 +69,8 @@ export async function dealList(
     client?: string;
     stage?: string;
     q?: string;
+    /** 'YYYY-MM': only deals added that month (India time). */
+    month?: string;
     includeTerminal?: boolean;
   } = {},
 ): Promise<DealRow[]> {
@@ -85,6 +87,7 @@ export async function dealList(
   if (f.client) add('client_id = ?::uuid', f.client);
   if (f.stage) add('stage = ?', f.stage);
   if (f.q) add('(title ilike ? or client_name ilike ? or coalesce(code,\'\') ilike ?)', `%${f.q}%`);
+  if (f.month) add("to_char(created_at at time zone 'Asia/Kolkata', 'YYYY-MM') = ?", f.month);
   if (!f.includeTerminal) where.push('not stage_is_terminal');
   return query<DealRow>(
     asActor(me),
@@ -93,6 +96,16 @@ export async function dealList(
                stage_position, coalesce(monthly_value,0) desc`,
     vals,
   );
+}
+
+/** Every month that has a live deal added in it, oldest first, as 'YYYY-MM'. */
+export async function dealMonths(me: Profile): Promise<string[]> {
+  const rows = await query<{ m: string }>(
+    asActor(me),
+    `select distinct to_char(created_at at time zone 'Asia/Kolkata', 'YYYY-MM') as m
+       from deal_view where archived_at is null and not stage_is_terminal order by 1`,
+  );
+  return rows.map((r) => r.m);
 }
 
 export async function dealById(me: Profile, id: string): Promise<DealRow | null> {

@@ -1,14 +1,14 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { currentProfile } from '@/lib/auth';
-import { clientList, dealList, profiles, stages } from '@/lib/queries';
+import { clientList, dealList, dealMonths, profiles, stages } from '@/lib/queries';
 import { moveStageAction } from '@/lib/actions';
 import { inr, istDate, relativeDue } from '@/lib/format';
 import type { DealRow } from '@/lib/types';
 import { Badge, CategoryTag, Code, HealthDot, Owner, TermTag } from '@/components/ui';
 import { Board } from '@/components/board';
 import { btnPrimary } from '@/components/forms';
-import { Filters, ViewTabs } from './controls';
+import { Filters, MonthPicker, ViewTabs } from './controls';
 import { billingStates, type BillingState } from '@/lib/billing';
 import { BillingStateBadge } from '@/components/billing-view';
 import { analytics, PERIODS, type Filters as AnalyticsFilterValues, type PeriodKey } from '@/lib/analytics';
@@ -39,6 +39,11 @@ export default async function DealsPage({
   const view = (VIEWS.find((v) => v.key === sp.view)?.key ?? 'all') as ViewKey;
   const category = view === 'all' || view === 'analytics' ? undefined : view;
 
+  // The month a deal was added, in India time. Defaults to this month.
+  const thisMonth = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', timeZone: 'Asia/Kolkata' }).format(new Date());
+  const month = sp.month === 'all' || /^\d{4}-\d{2}$/.test(sp.month ?? '') ? sp.month! : thisMonth;
+  const inMonth = month === 'all' ? undefined : month;
+
   const filters = {
     health: sp.health,
     intern: sp.intern,
@@ -54,11 +59,12 @@ export default async function DealsPage({
     category: (['pilot', 'retention', 'expansion'] as const).find((c) => c === sp.category),
   };
 
-  const [all, scoped, people, clients, stageList, billing, dashboard] = await Promise.all([
-    // Every live deal, so the tabs carry honest counts whatever the filters say.
-    dealList(me, {}),
+  const [all, scoped, months, people, clients, stageList, billing, dashboard] = await Promise.all([
+    // Every live deal added in the month, so the tabs carry honest counts whatever the other filters say.
+    dealList(me, { month: inMonth }),
     // Live deals only. A closed deal leaves this module and stays on its client's page.
-    dealList(me, { ...filters, category }),
+    dealList(me, { ...filters, category, month: inMonth }),
+    dealMonths(me),
     profiles(me),
     clientList(me),
     category ? stages(me, category) : Promise.resolve([]),
@@ -121,6 +127,8 @@ export default async function DealsPage({
       ) : (
       <>
 
+      <MonthPicker months={months.includes(thisMonth) ? months : [...months, thisMonth]} current={month} />
+
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px] text-[var(--ink-muted)]">
         <span>
           <span className="font-medium tabular-nums text-[var(--ink)]">{live.length}</span> live
@@ -143,7 +151,7 @@ export default async function DealsPage({
       <Filters
         people={people.filter((p) => p.role !== 'viewer').map((p) => ({ id: p.id, name: p.name }))}
         clients={clients.map((c) => ({ id: c.id, name: c.name }))}
-        values={{ ...filters, view }}
+        values={{ ...filters, view, month }}
       />
 
       {category ? (
@@ -196,6 +204,7 @@ function DealTable({ rows, billing }: { rows: DealRow[]; billing: Map<string, Bi
             <th className="t-label px-3 py-2 text-right">Monthly</th>
             <th className="t-label px-3 py-2">Billing</th>
             <th className="t-label px-3 py-2">Owner</th>
+            <th className="t-label px-3 py-2">Added</th>
             <th className="t-label px-3 py-2">Ends</th>
           </tr>
         </thead>
@@ -254,6 +263,9 @@ function DealTable({ rows, billing }: { rows: DealRow[]; billing: Map<string, Bi
               </td>
               <td className="px-3 py-2.5">
                 <Owner name={d.intern_owner_name} />
+              </td>
+              <td className="whitespace-nowrap px-3 py-2.5 text-[12px] text-[var(--ink-muted)]">
+                {istDate(d.created_at)}
               </td>
               <td className="px-3 py-2.5 text-[12px] text-[var(--ink-muted)]">
                 {istDate(d.end_date)}
