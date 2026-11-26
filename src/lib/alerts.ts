@@ -1,6 +1,8 @@
 import 'server-only';
 import { query } from './db';
 import { appUrl } from './gmail';
+import { fallingClients } from './usage';
+import { usageChangeText } from './format';
 
 /*
   Alerts go to one Slack channel through an incoming webhook (SLACK_WEBHOOK_URL).
@@ -83,6 +85,11 @@ export async function dailyDigest(): Promise<string> {
   if (red.length) {
     lines.push('', '*Red deals*');
     red.forEach((d) => lines.push(`• ${link(`/deals/${d.id}`, `${d.client_name} · ${d.title}`)}${d.health_reason ? `: ${d.health_reason}` : ''}`));
+  }
+  const falling = await fallingClients();
+  if (falling.length) {
+    lines.push('', '*Usage falling (last 30 days vs the 30 before)*');
+    falling.forEach((u) => lines.push(`• ${link(`/clients/${u.client_id}?tab=usage`, u.name)} · ${usageChangeText(u)}`));
   }
   if (renewals.length) {
     lines.push('', '*Renewing in the next 30 days*');

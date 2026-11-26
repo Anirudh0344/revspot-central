@@ -5,6 +5,8 @@ import { clientList, profiles } from '@/lib/queries';
 import { inr, istDate } from '@/lib/format';
 import { Badge, HealthDot, Owner } from '@/components/ui';
 import { btnPrimary } from '@/components/forms';
+import { usageByClient } from '@/lib/usage';
+import { UsageBadge } from '@/components/usage-view';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +20,7 @@ export default async function ClientsPage({
   const me = await currentProfile();
   if (!me) redirect('/login');
   const sp = await searchParams;
-  const [clients, people] = await Promise.all([
+  const [allClients, people, usage] = await Promise.all([
     clientList(me, {
       status: sp.status,
       health: sp.health,
@@ -27,7 +29,12 @@ export default async function ClientsPage({
       q: sp.q,
     }),
     profiles(me),
+    usageByClient(me),
   ]);
+  const clients =
+    sp.usage === 'falling'
+      ? allClients.filter((c) => ['down', 'stopped'].includes(usage.get(c.id)?.trend ?? ''))
+      : allClients;
 
   return (
     <div className="space-y-4">
@@ -60,6 +67,7 @@ export default async function ClientsPage({
           options={people.filter((p) => p.role !== 'viewer').map((p) => [p.id, p.name])}
         />
         <Filter name="segment" label="Segment" defaultValue={sp.segment} type="text" />
+        <Select name="usage" label="Usage" value={sp.usage} options={[['falling', 'Falling']]} />
         <button className={btnPrimary} data-testid="apply-filters">
           Apply
         </button>
@@ -75,6 +83,7 @@ export default async function ClientsPage({
               <th className="t-label px-4 py-2">Client</th>
               <th className="t-label px-4 py-2">Status</th>
               <th className="t-label px-4 py-2">Health</th>
+              <th className="t-label px-4 py-2">Usage</th>
               <th className="t-label px-4 py-2">Open deals</th>
               <th className="t-label px-4 py-2 text-right">Monthly</th>
               <th className="t-label px-4 py-2">Owner</th>
@@ -110,6 +119,13 @@ export default async function ClientsPage({
                 <td className="px-4 py-2">
                   <HealthDot health={c.health} />
                 </td>
+                <td className="px-4 py-2">
+                  {usage.get(c.id) ? (
+                    <UsageBadge usage={usage.get(c.id)} />
+                  ) : (
+                    <span className="text-[12px] text-[var(--ink-faint)]">Not linked</span>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-[12px] text-[var(--ink-muted)]">
                   {[
                     Number(c.open_pilots) ? `${c.open_pilots} pilot` : null,
@@ -130,7 +146,7 @@ export default async function ClientsPage({
             ))}
             {clients.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-[13px] text-[var(--ink-muted)]">
+                <td colSpan={8} className="px-4 py-6 text-center text-[13px] text-[var(--ink-muted)]">
                   No clients match these filters.
                 </td>
               </tr>

@@ -82,3 +82,28 @@ export function initials(name: string | null | undefined): string {
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
 }
+
+/** 12345 -> '12.3k', 2500000 -> '25L': compact counts in Indian units. */
+export function count(n: number | string | null | undefined): string {
+  const v = Number(n ?? 0);
+  if (!Number.isFinite(v)) return '—';
+  if (v >= 1e7) return `${(v / 1e7).toLocaleString('en-IN', { maximumFractionDigits: 1 })}Cr`;
+  if (v >= 1e5) return `${(v / 1e5).toLocaleString('en-IN', { maximumFractionDigits: 1 })}L`;
+  if (v >= 1e3) return `${(v / 1e3).toLocaleString('en-IN', { maximumFractionDigits: 1 })}k`;
+  return v.toLocaleString('en-IN');
+}
+
+export function pct(p: number | null | undefined): string {
+  if (p === null || p === undefined) return '—';
+  return `${p > 0 ? '+' : ''}${p}%`;
+}
+
+/** 'leads −35% · calls stopped', naming only the metrics that moved. */
+export function usageChangeText(u: {
+  leads_change_pct: number | null;
+  calls_change_pct: number | null;
+}): string {
+  const part = (label: string, p: number | null) =>
+    p === null ? null : p === -100 ? `${label} stopped` : `${label} ${pct(p)}`;
+  return [part('leads', u.leads_change_pct), part('bot calls', u.calls_change_pct)].filter(Boolean).join(' · ') || 'no comparable volume';
+}

@@ -2,6 +2,7 @@ import 'server-only';
 import { query } from './db';
 import { syncAllMailboxes } from './gmail-sync';
 import { dailyDigest, postSlack } from './alerts';
+import { syncUsage } from './usage';
 
 /** Runs a job and records it, so Settings can show what ran and whether it worked. */
 async function logged<T>(job: string, fn: () => Promise<T>): Promise<T> {
@@ -21,15 +22,21 @@ export function runMailSync() {
   return logged('mail_sync', () => syncAllMailboxes());
 }
 
-/** Every morning: mail, renewals, reminders, then the Slack summary. */
+/** Client usage (leads + bot calls) from the Revspot admin data. */
+export function runUsageSync() {
+  return logged('usage_sync', () => syncUsage());
+}
+
+/** Every morning: mail, usage, renewals, reminders, then the Slack summary. */
 export function runDaily() {
   return logged('daily', async () => {
     const mail = await syncAllMailboxes().catch((e) => ({ error: (e as Error).message }));
+    const usage = await runUsageSync().catch((e) => ({ error: (e as Error).message }));
     const [renewals] = await query<{ n: number }>(null, 'select run_renewal_watch() as n');
     const [reminders] = await query<{ n: number }>(null, 'select queue_billing_reminders() as n');
     const digest = await dailyDigest();
     const posted = await postSlack(digest);
-    return { mail, renewals_moved: renewals.n, reminders_queued: reminders.n, slack: posted };
+    return { mail, usage, renewals_moved: renewals.n, reminders_queued: reminders.n, slack: posted };
   });
 }
 

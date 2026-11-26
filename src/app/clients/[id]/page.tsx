@@ -17,10 +17,16 @@ import { btn, Disclosure } from '@/components/forms';
 import { billingAccountsFor, billsForClient, clientBilling } from '@/lib/billing';
 import { BillList } from '@/components/billing-view';
 import { AddBillingAccountForm } from '@/components/billing';
+import { unlinkedWorkspaces, usageForClient, usageSourcesFor, usageWeeks } from '@/lib/usage';
+import { UsageBadge, UsagePanel } from '@/components/usage-view';
+import { LinkUsageWorkspaceForm, SyncUsageButton, UnlinkUsageWorkspaceButton } from '@/components/usage-forms';
+import { count } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
+// "Sync now" runs the usage sync in this page's server action; a first backfill takes ~90s.
+export const maxDuration = 300;
 
-const TABS = ['deals', 'billing', 'contacts', 'interactions', 'activity'] as const;
+const TABS = ['deals', 'usage', 'billing', 'contacts', 'interactions', 'activity'] as const;
 
 export default async function ClientPage({
   params,
@@ -37,6 +43,14 @@ export default async function ClientPage({
 
   const client = await clientById(me, id);
   if (!client) notFound();
+
+  const [usage, sources, weeks, freeWorkspaces] = await Promise.all([
+    usageForClient(me, id),
+    tab === 'usage' ? usageSourcesFor(me, id) : [],
+    tab === 'usage' ? usageWeeks(me, id) : [],
+    tab === 'usage' ? unlinkedWorkspaces(me) : [],
+  ]);
+  const canWrite = me.role !== 'viewer';
 
   const [deals, contacts, interactions, activity, people, billing, bills, accounts] = await Promise.all([
     dealList(me, { client: id, includeTerminal: true }),
@@ -61,6 +75,11 @@ export default async function ClientPage({
             {client.status}
           </Badge>
           {client.single_threaded && <Badge tone="warn">Single-threaded</Badge>}
+          {usage && (
+            <Link href={`/clients/${id}?tab=usage`}>
+              <UsageBadge usage={usage} />
+            </Link>
+          )}
           <div className="ml-auto flex gap-2">
             <Link href={`/deals/new?client=${client.id}`} className={btn} data-testid="add-deal">
               New deal
@@ -130,6 +149,50 @@ export default async function ClientPage({
             <DealCard key={d.id} deal={d} />
           ))}
           {deals.length === 0 && <Empty>No deals yet.</Empty>}
+        </div>
+      )}
+
+      {tab === 'usage' && (
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <Card title="Usage" action={me.role === 'admin' ? <SyncUsageButton /> : undefined} testId="usage-card">
+              {usage && sources.length > 0 ? (
+                <UsagePanel usage={usage} weeks={weeks} />
+              ) : (
+                <Empty>
+                  No Revspot workspace is linked to this client yet. Link the workspace(s) it runs on, and its
+                  leads and bot calls will show here.
+                </Empty>
+              )}
+            </Card>
+          </div>
+          <Card title="Revspot workspaces" count={sources.length} testId="usage-sources">
+            <ul className="divide-y divide-[var(--line)]">
+              {sources.map((s) => (
+                <li key={s.id} className="flex items-start gap-2 py-2 text-[13px]">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{s.name ?? s.workspace_key}</p>
+                    <p className="truncate text-[12px] text-[var(--ink-faint)]">
+                      {s.workspace_key}
+                      {s.parent_org_name ? ` · org: ${s.parent_org_name}` : ''}
+                    </p>
+                    <p className="text-[12px] text-[var(--ink-muted)]">
+                      30d: {count(s.leads_30)} leads · {count(s.calls_30)} calls
+                    </p>
+                  </div>
+                  {canWrite && <UnlinkUsageWorkspaceButton clientId={id} sourceId={s.id} />}
+                </li>
+              ))}
+              {sources.length === 0 && <Empty>None linked.</Empty>}
+            </ul>
+            {canWrite && (
+              <div className="mt-4 border-t border-[var(--line)] pt-3">
+                <Disclosure label="Link a Revspot workspace" testId="link-usage-workspace">
+                  <LinkUsageWorkspaceForm clientId={id} workspaces={freeWorkspaces} />
+                </Disclosure>
+              </div>
+            )}
+          </Card>
         </div>
       )}
 
