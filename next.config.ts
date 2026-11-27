@@ -3,7 +3,7 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 /*
-  Path prefix the app is served under, e.g. /p/cs-central on Marketplace; empty at
+  Path prefix the app is served under, e.g. /p/cs-dashboard-1 on Marketplace; empty at
   the site root (local dev, a plain server).
 
   It is baked in at `next build`. Marketplace generates its own docker-compose, so

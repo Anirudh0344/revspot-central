@@ -25,7 +25,7 @@ const SCOPES: Record<Purpose, string[]> = {
 };
 
 /**
- * The app's public URL, path prefix included (e.g. https://marketplace.revspot.ai/p/cs-central),
+ * The app's public URL, path prefix included (e.g. https://marketplace.revspot.ai/p/cs-dashboard-1),
  * whether or not APP_URL was written with it. Used for redirects, OAuth callbacks and
  * links in Slack.
  */

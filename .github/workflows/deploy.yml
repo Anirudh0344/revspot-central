@@ -1,0 +1,39 @@
+name: Deploy to marketplace
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: [self-hosted, marketplace]
+    env:
+      DEPLOY_PATH: /home/ubuntu/deployments/deploy-77-cs-dashboard-1
+    steps:
+      - name: Sync deployment directory
+        working-directory: ${{ env.DEPLOY_PATH }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          AUTH=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git remote set-url origin "https://github.com/${{ github.repository }}.git"
+          git -c http.extraheader="AUTHORIZATION: basic $AUTH" fetch --prune origin
+          git reset --hard "$GITHUB_SHA"
+
+      - name: Rebuild and restart
+        working-directory: ${{ env.DEPLOY_PATH }}
+        run: docker compose up -d --build
+
+      - name: Report state
+        if: always()
+        working-directory: ${{ env.DEPLOY_PATH }}
+        run: docker compose ps

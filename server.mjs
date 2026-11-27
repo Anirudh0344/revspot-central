@@ -3,7 +3,7 @@
 // Runs Next.js behind a thin wrapper that makes the app work under a path prefix
 // (Marketplace serves it at /p/{slug}/) however the platform forwards requests:
 //
-//   - Prefix stripped by the platform (/deals instead of /p/cs-central/deals):
+//   - Prefix stripped by the platform (/deals instead of /p/cs-dashboard-1/deals):
 //     put it back, since Next.js was built with that basePath and 404s without it.
 //   - The bare app root: Marketplace redirects /p/{slug} to /p/{slug}/, while
 //     Next.js redirects /p/{slug}/ back to /p/{slug}. Left alone the two bounce

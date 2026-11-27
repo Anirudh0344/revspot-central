@@ -104,7 +104,7 @@ Settings shows each run and whether it worked.
 
 ## Revspot Marketplace
 
-Served at **https://marketplace.revspot.ai/p/cs-central/** (slug `cs-central`).
+Served at **https://marketplace.revspot.ai/p/cs-dashboard-1/** (slug `cs-dashboard-1`).
 
 How the app fits Marketplace:
 
@@ -114,8 +114,8 @@ How the app fits Marketplace:
 - **Base path.** `next.config.ts` sets Next.js `basePath` from `BASE_PATH`, baked in
   at build. Marketplace writes its own compose file, so build args may not arrive;
   a bare `/` therefore counts as unset and the value is read from `.env`
-  (`BASE_PATH=/p/cs-central/`). `server.mjs` puts the prefix back if the platform
-  strips it, and serves `/p/cs-central` and `/p/cs-central/` without the redirect
+  (`BASE_PATH=/p/cs-dashboard-1/`). `server.mjs` puts the prefix back if the platform
+  strips it, and serves `/p/cs-dashboard-1` and `/p/cs-dashboard-1/` without the redirect
   loop the two would otherwise cause. `<Link>` and `redirect()` add the prefix
   themselves; plain links use `withBase()`, absolute URLs use `appUrl()`.
 - **Local dev is unaffected:** `.env.local` sets `BASE_PATH=/`, and only a production
@@ -128,20 +128,20 @@ How the app fits Marketplace:
    `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`. Without Google, nobody can sign in:
    the pick-a-profile sign-in is disabled in production.
 2. In the Google OAuth client, add the redirect URI
-   `https://marketplace.revspot.ai/p/cs-central/api/google/callback`.
+   `https://marketplace.revspot.ai/p/cs-dashboard-1/api/google/callback`.
 3. Apply migrations to that database: `PROD_DATABASE_URL='…' npm run db:deploy`.
 4. Build the zip from the repo root (keeps `.git` and `.env`, drops local files):
 
    ```bash
-   zip -r ../cs-central.zip . -x "node_modules/*" ".next/*" ".next-test/*" ".env.local" "backups/*" "*.tsbuildinfo" ".claude/*"
+   zip -r ../cs-dashboard-1.zip . -x "node_modules/*" ".next/*" ".next-test/*" ".env.local" "backups/*" "*.tsbuildinfo" ".claude/*"
    ```
 
-5. Upload it on Marketplace with the slug `cs-central`.
+5. Upload it on Marketplace with the slug `cs-dashboard-1`.
 
 ### Auto-deploy
 
 After the first upload, open the deployment's **Auto-deploy** tab, copy the
-workflow (it has the real `DEPLOY_PATH`, `deploy-{id}-cs-central`) and commit it as
+workflow (it has the real `DEPLOY_PATH`, `deploy-{id}-cs-dashboard-1`) and commit it as
 `.github/workflows/deploy.yml`. Every push to `main` then rebuilds the app. Keep
 `.env` untracked: the workflow's `git reset --hard` leaves untracked files alone.
 
@@ -150,8 +150,8 @@ workflow (it has the real `DEPLOY_PATH`, `deploy-{id}-cs-central`) and commit it
 Marketplace runs no cron. Something must call, with `Authorization: Bearer <CRON_SECRET>`:
 
 ```cron
-30 3 * * *   curl -fsS -m 600 -H "Authorization: Bearer $CRON_SECRET" https://marketplace.revspot.ai/p/cs-central/api/cron/daily > /dev/null
-0 */3 * * *  curl -fsS -m 300 -H "Authorization: Bearer $CRON_SECRET" https://marketplace.revspot.ai/p/cs-central/api/cron/sync > /dev/null
+30 3 * * *   curl -fsS -m 600 -H "Authorization: Bearer $CRON_SECRET" https://marketplace.revspot.ai/p/cs-dashboard-1/api/cron/daily > /dev/null
+0 */3 * * *  curl -fsS -m 300 -H "Authorization: Bearer $CRON_SECRET" https://marketplace.revspot.ai/p/cs-dashboard-1/api/cron/sync > /dev/null
 ```
 
 The daily job also runs the client usage sync, which needs the Marketplace server to

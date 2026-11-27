@@ -7,8 +7,8 @@
   callback) has to add it: use withBase() / appUrl().
 */
 
-/** '' at the site root, otherwise e.g. '/p/cs-central' (no trailing slash). */
+/** '' at the site root, otherwise e.g. '/p/cs-dashboard-1' (no trailing slash). */
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
-/** '/settings' -> '/p/cs-central/settings' */
+/** '/settings' -> '/p/cs-dashboard-1/settings' */
 export const withBase = (path: string) => `${BASE_PATH}${path}`;
