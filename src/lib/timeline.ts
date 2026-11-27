@@ -20,6 +20,8 @@ export type EmailMessage = {
   participants: string[];
   summary: string;
   mailbox: string | null;
+  /** Not filed on any deal: shown on every deal of the client until someone files it. */
+  unfiled: boolean;
 };
 
 export type TimelineItem =
@@ -108,8 +110,8 @@ export async function dealTimeline(me: Profile, dealId: string) {
     query<{ id: string; name: string }>(actor, 'select id, name from profiles'),
     query<{ id: string; channel: string; occurred_at: string; participants: string[] | null; summary: string;
             subject: string | null; direction: string | null; mailbox: string | null; thread_ref: string | null;
-            next_step: string | null; by: string | null }>(actor,
-      `select i.id, i.channel, i.occurred_at, i.participants, i.summary, i.subject, i.direction, i.mailbox,
+            next_step: string | null; by: string | null; deal_id: string | null }>(actor,
+      `select i.id, i.channel, i.occurred_at, i.participants, i.summary, i.subject, i.direction, i.mailbox, i.deal_id,
               i.thread_ref, i.next_step, p.name as by
          from interactions i left join profiles p on p.id = i.logged_by
         where i.deal_id = $1
@@ -165,7 +167,7 @@ export async function dealTimeline(me: Profile, dealId: string) {
       const subject = i.subject ?? i.summary.split('\n')[0].slice(0, 120);
       const key = `t-${normSubject(subject) || i.thread_ref || i.id}`;
       const msg = { id: i.id, at: i.occurred_at, direction: i.direction, participants: i.participants ?? [],
-                    summary: i.summary, mailbox: i.mailbox };
+                    summary: i.summary, mailbox: i.mailbox, unfiled: i.deal_id === null };
       const t = threads.get(key);
       if (t) {
         t.messages.push(msg);
@@ -210,10 +212,16 @@ export async function dealTimeline(me: Profile, dealId: string) {
     const s = String(v);
     return s.length > 80 ? s.slice(0, 80) + '…' : s;
   };
+  // Ids and uuids mean nothing to a reader (the record they point at is the page
+  // they're on); a new value has no "before", so it reads as "field: value".
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const fieldList = (c: Record<string, [unknown, unknown]>) =>
     Object.entries(c)
-      .filter(([k]) => !QUIET.has(k))
-      .map(([k, [a, b]]) => `${FIELD[k] ?? k.replaceAll('_', ' ')}: ${val(k, a)} → ${val(k, b)}`);
+      .filter(([k, [, b]]) => !QUIET.has(k) && k !== 'id' && !k.endsWith('_id') && !UUID.test(String(b ?? '')))
+      .map(([k, [a, b]]) =>
+        a === null || a === undefined
+          ? `${FIELD[k] ?? k.replaceAll('_', ' ')}: ${val(k, b)}`
+          : `${FIELD[k] ?? k.replaceAll('_', ' ')}: ${val(k, a)} → ${val(k, b)}`);
 
   for (const a of acts) {
     const c = a.changes ?? {};
@@ -274,6 +282,16 @@ export async function dealTimeline(me: Profile, dealId: string) {
     } else if (a.entity_type === 'playbook_runs') {
       if (a.action === 'create') items.push({ ...base, kind: 'task', tone: 'brand', title: 'Playbook started', detail: null });
       else if (c.status) items.push({ ...base, kind: 'task', tone: c.status[1] === 'completed' ? 'good' : 'neutral', title: `Playbook ${c.status[1]}`, detail: null });
+    } else if (a.entity_type === 'line_items' && a.action === 'create') {
+      const qty = c.quantity?.[1], unit = c.unit?.[1], rate = c.rate?.[1], amount = c.amount?.[1];
+      items.push({ ...base, kind: 'change', tone: 'neutral',
+        title: `Added line item: ${String(c.description?.[1] ?? '')}`.trim().replace(/:$/, ''),
+        detail: [qty !== undefined && qty !== null ? `${qty}${unit ? ` ${unit}` : ''}` : null,
+                 rate ? `× ${inr(rate as string)}` : null,
+                 amount ? `= ${inr(amount as string)}` : null].filter(Boolean).join(' ') || null });
+    } else if (a.entity_type === 'deal_contacts') {
+      items.push({ ...base, kind: 'change', tone: 'neutral',
+        title: c.removed_at?.[1] ? 'Contact unlinked from the deal' : 'Contact linked to the deal', detail: null });
     } else {
       const f = fieldList(c);
       items.push({ ...base, kind: 'change', tone: 'neutral',

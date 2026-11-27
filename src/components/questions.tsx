@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { askQuestionAction, setBlockerAction } from '@/lib/question-actions';
@@ -37,53 +36,34 @@ export function AskForm({
   return (
     <ActionForm action={askQuestionAction} submitLabel="Ask" testId="ask-form">
       <input type="hidden" name="deal_id" value={dealId} />
-      <div className="grid gap-2 sm:grid-cols-2">
-        <label className="t-label block">
-          About
-          <select name="anchor" defaultValue={anchor ?? 'general'} className={`${input} mt-1`} data-testid="ask-anchor">
-            {ANCHOR_OPTIONS.map((a) => (
-              <option key={a.key} value={a.key}>
-                {a.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="t-label block">
-          Ask
-          <select name="asked_to" defaultValue={defaultTo ?? ''} className={`${input} mt-1`} data-testid="ask-to">
-            <option value="">Anyone on the team</option>
-            {people.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <label className="t-label mt-2 block">
-        Specifically
-        <input name="anchor_note" defaultValue={about ?? ''} className={`${input} mt-1`} placeholder="Optional: the exact item, e.g. an email subject or a target" />
+      {/* What it is about comes from where the person clicked "Ask", not a form field. */}
+      <input type="hidden" name="anchor" value={anchor ?? 'general'} />
+      {about && <input type="hidden" name="anchor_note" value={about} />}
+      {(anchor && anchor !== 'general') || about ? (
+        <p className="mb-2 text-[12px] text-[var(--ink-muted)]">
+          About: {ANCHOR_OPTIONS.find((a) => a.key === anchor)?.label ?? 'The deal in general'}
+          {about ? ` · ${about}` : ''}
+        </p>
+      ) : null}
+      <label className="t-label block">
+        Ask
+        <select name="asked_to" defaultValue={defaultTo ?? ''} className={`${input} mt-1`} data-testid="ask-to">
+          <option value="">Anyone on the team</option>
+          {people.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="t-label mt-2 block">
         Question
-        <textarea name="body" rows={2} className={`${input} mt-1`} required data-testid="ask-body" placeholder="What do you need to know?" />
+        <textarea name="body" rows={2} className={`${input} mt-1`} required data-testid="ask-body" />
       </label>
     </ActionForm>
   );
 }
 
-/** A small "Ask" link for a card header; opens the ask form with the part filled in. */
-export function AskLink({ dealId, anchor }: { dealId: string; anchor: string }) {
-  return (
-    <Link
-      href={`/deals/${dealId}?ask=${anchor}#ask`}
-      className="text-[12px] text-[var(--ink-muted)] hover:text-[var(--accent-ink)] hover:underline"
-      data-testid={`ask-${anchor}`}
-    >
-      Ask
-    </Link>
-  );
-}
 
 export const BLOCKERS: { key: string; label: string }[] = [
   { key: 'client', label: 'The client' },

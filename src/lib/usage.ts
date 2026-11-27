@@ -28,7 +28,7 @@ export type ClientUsage = {
   trend: UsageTrend;
 };
 
-const BACKFILL_DAYS = 62; // first run: enough for two 30-day windows
+const HISTORY_DAYS = 180; // history kept for the trend chart and its date filter
 const REFRESH_DAYS = 7; // later runs: re-count at least the last week, late rows included
 
 /** Midnight IST `daysAgo` days back, as the naive UTC Date Mongo stores. */
@@ -61,10 +61,15 @@ export async function syncUsage() {
   if (!uri) return { skipped: 'MONGODB_URI is not set' };
 
   // Re-count from the newest day already held, so days missed while the job was
-  // down (or Mongo was unreachable) get filled instead of reading as zero.
-  const [{ behind }] = await query<{ behind: number | null }>(
-    null, 'select (today_ist() - max(day))::int as behind from usage_daily');
-  const days = behind === null ? BACKFILL_DAYS : Math.min(BACKFILL_DAYS, Math.max(REFRESH_DAYS, behind + 1));
+  // down (or Mongo was unreachable) get filled instead of reading as zero. When the
+  // history is shorter than HISTORY_DAYS (first run, or a store built before the
+  // window grew), fill all of it once.
+  const [{ behind, span }] = await query<{ behind: number | null; span: number | null }>(
+    null, 'select (today_ist() - max(day))::int as behind, (today_ist() - min(day))::int as span from usage_daily');
+  const days =
+    behind === null || span === null || span < HISTORY_DAYS - REFRESH_DAYS
+      ? HISTORY_DAYS
+      : Math.min(HISTORY_DAYS, Math.max(REFRESH_DAYS, behind + 1));
   const since = istMidnight(days);
 
   const mongo = new MongoClient(uri, { readPreference: 'secondaryPreferred' });
@@ -73,7 +78,7 @@ export async function syncUsage() {
     const revv = mongo.db(process.env.REVV_DB || 'revv');
     const opts = { allowDiskUse: true, maxTimeMS: 150_000 };
     // call_log holds millions of rows a week (~17s per week to group), so count
-    // it in weekly slices, three at a time, instead of one long scan.
+    // it in weekly slices, four at a time, instead of one long scan.
     const slices: [Date, Date | undefined][] = [];
     for (let d = days; d > 0; d -= 7) slices.push([istMidnight(d), d > 7 ? istMidnight(d - 7) : undefined]);
     const calls: Awaited<ReturnType<typeof callSlice>> = [];
@@ -82,7 +87,7 @@ export async function syncUsage() {
     const runCalls = async () => {
       const queue = [...slices];
       await Promise.all(
-        Array.from({ length: 3 }, async () => {
+        Array.from({ length: 4 }, async () => {
           for (let s = queue.shift(); s; s = queue.shift()) calls.push(...(await callSlice(s[0], s[1])));
         }),
       );
@@ -184,11 +189,11 @@ export async function usageSourcesFor(me: Profile, clientId: string): Promise<Us
   return query<UsageSource>(
     asActor(me),
     `select s.id, s.workspace_key, o.name, o.parent_org_name,
-            coalesce(sum(u.leads) filter (where u.day >= today_ist() - 30 and u.day < today_ist()), 0)::int as leads_30,
-            coalesce(sum(u.calls) filter (where u.day >= today_ist() - 30 and u.day < today_ist()), 0)::int as calls_30
+            coalesce(sum(u.leads) filter (where u.day between usage_through() - 29 and usage_through()), 0)::int as leads_30,
+            coalesce(sum(u.calls) filter (where u.day between usage_through() - 29 and usage_through()), 0)::int as calls_30
        from client_usage_sources s
        left join revspot_workspaces o on o.workspace_key = s.workspace_key
-       left join usage_daily u on u.workspace_key = s.workspace_key and u.day >= today_ist() - 30
+       left join usage_daily u on u.workspace_key = s.workspace_key and u.day >= usage_through() - 29
       where s.client_id = $1 and s.removed_at is null
       group by s.id, s.workspace_key, o.name, o.parent_org_name
       order by o.name nulls last, s.workspace_key`,
@@ -196,24 +201,58 @@ export async function usageSourcesFor(me: Profile, clientId: string): Promise<Us
   );
 }
 
-/** Weekly totals over the last 8 complete weeks (oldest first), for the bars. */
-export async function usageWeeks(me: Profile, clientId: string) {
-  return query<{ week_start: string; leads: number; calls: number }>(
+export const USAGE_HISTORY_DAYS = HISTORY_DAYS;
+
+export type UsageDay = { day: string; leads: number; calls: number };
+
+/** One row per IST day in [from, to], zero-filled, summed over the client's linked workspaces. */
+export async function usageDaily(me: Profile, clientId: string, from: string, to: string) {
+  return query<UsageDay>(
     asActor(me),
-    `with weeks as (
-       select generate_series(0, 7) as i
-     )
-     select (today_ist() - 7 * (8 - i))::date as week_start,
+    `select g.day::date::text as day,
             coalesce(sum(u.leads), 0)::int as leads,
             coalesce(sum(u.calls), 0)::int as calls
-       from weeks
+       from generate_series($2::date, $3::date, interval '1 day') g(day)
        left join client_usage_sources s on s.client_id = $1 and s.removed_at is null
-       left join usage_daily u on u.workspace_key = s.workspace_key
-                              and u.day >= today_ist() - 7 * (8 - i)
-                              and u.day <  today_ist() - 7 * (7 - i)
-      group by i order by i`,
-    [clientId],
+       left join usage_daily u on u.workspace_key = s.workspace_key and u.day = g.day::date
+      group by g.day order by g.day`,
+    [clientId, from, to],
   );
+}
+
+/** Totals for [from, to] and for the same number of days just before it. */
+export async function usageRangeTotals(me: Profile, clientId: string, from: string, to: string) {
+  const [row] = await query<{
+    prev_from: string; prev_to: string; leads: number; calls: number; leads_prev: number; calls_prev: number;
+  }>(
+    asActor(me),
+    `with r as (select $2::date as f, $3::date as t, ($3::date - $2::date + 1) as n)
+     select (r.f - r.n)::text as prev_from, (r.f - 1)::text as prev_to,
+            coalesce(sum(u.leads) filter (where u.day between r.f and r.t), 0)::int as leads,
+            coalesce(sum(u.calls) filter (where u.day between r.f and r.t), 0)::int as calls,
+            coalesce(sum(u.leads) filter (where u.day between r.f - r.n and r.f - 1), 0)::int as leads_prev,
+            coalesce(sum(u.calls) filter (where u.day between r.f - r.n and r.f - 1), 0)::int as calls_prev
+       from r
+       left join client_usage_sources s on s.client_id = $1 and s.removed_at is null
+       left join usage_daily u on u.workspace_key = s.workspace_key and u.day between r.f - r.n and r.t
+      group by r.f, r.t, r.n`,
+    [clientId, from, to],
+  );
+  return row;
+}
+
+/**
+ * How far the usage store reaches: its first day, and the last COMPLETE day (the day
+ * before the last successful sync, IST). Days after that have no data yet; drawing
+ * them as zero would read as usage collapsing.
+ */
+export async function usageBounds(me: Profile) {
+  const [row] = await query<{ earliest: string | null; through: string | null }>(
+    asActor(me),
+    `select (select min(day)::text from usage_daily) as earliest,
+            usage_through()::text as through`,
+  );
+  return { earliest: row?.earliest ?? null, through: row?.through ?? null };
 }
 
 export type WorkspaceOption = {

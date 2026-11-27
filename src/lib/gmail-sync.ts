@@ -6,6 +6,12 @@ import { accessToken } from './gmail';
   Pulls client email from every connected mailbox into the app:
     - each message with a client's domain on it becomes an email interaction
       (deduplicated by Message-ID, so the same email in two mailboxes counts once)
+    - it goes on a deal when we can tell which one, strongest evidence first:
+        1. it continues a thread already filed on a live deal (same Gmail thread,
+           or In-Reply-To/References naming a message we have)
+        2. the client's people on it are linked to exactly one live deal
+        3. the client has exactly one live deal
+      otherwise it stays on the client, where someone can file it by hand
     - the people on it update the client's contacts and last-contacted dates
     - a client's reply on a reminder thread is flagged for collections
   Only messages involving a known client domain are fetched.
@@ -90,7 +96,8 @@ export async function syncMailbox(account: {
   const domains = await query<{ domain: string; client_id: string }>(
     null,
     `select lower(cd.domain) as domain, cd.client_id from client_domains cd
-       join clients c on c.id = cd.client_id where c.archived_at is null and lower(cd.domain) <> $1`,
+       join clients c on c.id = cd.client_id
+      where c.archived_at is null and cd.removed_at is null and lower(cd.domain) <> $1`,
     [INTERNAL],
   );
   if (domains.length === 0) return result;
@@ -128,7 +135,7 @@ export async function syncMailbox(account: {
   const metas = await inBatches([...ids], 10, (id) =>
     gmail<MessageMeta>(
       token,
-      `messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Message-ID`,
+      `messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Message-ID&metadataHeaders=In-Reply-To&metadataHeaders=References`,
     ),
   );
 
@@ -170,18 +177,36 @@ export async function syncMailbox(account: {
       }
     }
 
-    // The deal: the one live deal all these people are linked to, if there is exactly one.
-    const deals = await query<{ deal_id: string }>(
+    // 1. A reply in a thread that is already on a live deal stays with it. Gmail
+    // thread ids differ per mailbox, so also match the Message-IDs this one answers.
+    const refs = `${h('In-Reply-To') ?? ''} ${h('References') ?? ''}`
+      .match(/<[^>]+>/g)?.map((r) => `mail:${r.replace(/[<>]/g, '')}`) ?? [];
+    const [threaded] = await query<{ deal_id: string }>(
       null,
-      `select distinct dc.deal_id from deal_contacts dc
-         join contacts c on c.id = dc.contact_id
-         join deal_view dv on dv.id = dc.deal_id
-        where lower(c.email) = any($1) and not dv.stage_is_terminal and dv.archived_at is null`,
-      [people.map((p) => p.email)],
+      `select i.deal_id from interactions i
+         join deal_view dv on dv.id = i.deal_id
+        where i.client_id = $1 and (i.thread_ref = $2 or i.source_ref = any($3::text[]))
+          and not dv.stage_is_terminal and dv.archived_at is null
+        order by i.occurred_at desc limit 1`,
+      [clientId, m.threadId, refs],
     );
+    let dealId: string | null = threaded?.deal_id ?? null;
 
-    // Failing that, the client's only live deal.
-    let dealId = deals.length === 1 ? deals[0].deal_id : null;
+    // 2. The one live deal all these people are linked to, if there is exactly one.
+    if (!dealId) {
+      const deals = await query<{ deal_id: string }>(
+        null,
+        `select distinct dc.deal_id from deal_contacts dc
+           join contacts c on c.id = dc.contact_id
+           join deal_view dv on dv.id = dc.deal_id
+          where lower(c.email) = any($1) and dc.removed_at is null and c.archived_at is null
+            and not dv.stage_is_terminal and dv.archived_at is null`,
+        [people.map((p) => p.email)],
+      );
+      if (deals.length === 1) dealId = deals[0].deal_id;
+    }
+
+    // 3. Failing that, the client's only live deal.
     if (!dealId) {
       const only = await query<{ id: string }>(
         null,

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import type { TimelineItem, TimelineKind, Upcoming } from '@/lib/timeline';
 import { istDateTime, relativeDue } from '@/lib/format';
 import { replyQuestionAction, setQuestionStatusAction } from '@/lib/question-actions';
+import { attachEmailToDealAction } from '@/lib/email-link-actions';
 import { ActionForm, input } from './forms';
 import { Badge, Empty } from './ui';
 
@@ -52,6 +53,7 @@ export function Timeline({
   counts,
   meId,
   mailboxes,
+  canFile = false,
 }: {
   dealId: string;
   items: TimelineItem[];
@@ -59,6 +61,8 @@ export function Timeline({
   counts: Record<string, number>;
   meId: string;
   mailboxes: number;
+  /** Whether this person may file unfiled client email on the deal. */
+  canFile?: boolean;
 }) {
   const [filter, setFilter] = useState<TimelineKind | 'all'>('all');
   const shown = filter === 'all' ? items : items.filter((i) => i.kind === filter);
@@ -132,7 +136,7 @@ export function Timeline({
                 <span className="absolute bottom-0 left-[5px] top-4 w-px bg-[var(--line)]" aria-hidden />
                 <span className={`relative mt-1.5 h-[11px] w-[11px] shrink-0 rounded-full ring-2 ring-[var(--paper)] ${DOT[item.kind]}`} />
                 <div className="min-w-0 flex-1">
-                  <Entry item={item} dealId={dealId} meId={meId} />
+                  <Entry item={item} dealId={dealId} meId={meId} canFile={canFile} />
                 </div>
               </div>
             </li>
@@ -147,10 +151,10 @@ function Meta({ children }: { children: React.ReactNode }) {
   return <p className="text-[12px] text-[var(--ink-muted)]">{children}</p>;
 }
 
-function Entry({ item, dealId, meId }: { item: TimelineItem; dealId: string; meId: string }) {
+function Entry({ item, dealId, meId, canFile }: { item: TimelineItem; dealId: string; meId: string; canFile: boolean }) {
   switch (item.kind) {
     case 'email':
-      return <EmailThread item={item} dealId={dealId} />;
+      return <EmailThread item={item} dealId={dealId} canFile={canFile} />;
     case 'conversation':
     case 'note':
       return (
@@ -187,10 +191,19 @@ function Entry({ item, dealId, meId }: { item: TimelineItem; dealId: string; meI
   }
 }
 
-function EmailThread({ item, dealId }: { item: Extract<TimelineItem, { kind: 'email' }>; dealId: string }) {
+function EmailThread({
+  item,
+  dealId,
+  canFile,
+}: {
+  item: Extract<TimelineItem, { kind: 'email' }>;
+  dealId: string;
+  canFile: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const last = item.messages[item.messages.length - 1];
   const inbound = item.messages.filter((m) => m.direction === 'inbound').length;
+  const unfiled = item.messages.filter((m) => m.unfiled);
   return (
     <div className="rounded-lg border border-[var(--line)]" data-testid="email-thread">
       <button type="button" onClick={() => setOpen(!open)} className="w-full p-2.5 text-left" aria-expanded={open}>
@@ -198,6 +211,7 @@ function EmailThread({ item, dealId }: { item: Extract<TimelineItem, { kind: 'em
           <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{item.subject}</span>
           <Badge>{item.messages.length} {item.messages.length === 1 ? 'email' : 'emails'}</Badge>
           {inbound > 0 && <Badge tone="brand">{inbound} from client</Badge>}
+          {unfiled.length > 0 && <Badge tone="warn">Not filed on a deal</Badge>}
         </div>
         {!open && <p className="mt-1 line-clamp-2 text-[12px] text-[var(--ink-muted)]">{last.summary}</p>}
         <Meta>
@@ -205,6 +219,9 @@ function EmailThread({ item, dealId }: { item: Extract<TimelineItem, { kind: 'em
           {item.mailboxes.length > 0 && ` · ${item.mailboxes.join(', ')}`}
         </Meta>
       </button>
+      {unfiled.length > 0 && (
+        <UnfiledNote dealId={dealId} messageIds={unfiled.map((m) => m.id)} canFile={canFile} />
+      )}
       {open && (
         <ol className="space-y-2 border-t border-[var(--line)] p-2.5">
           {item.messages.map((m) => (
@@ -297,6 +314,45 @@ function QuestionEntry({ item, meId }: { item: Extract<TimelineItem, { kind: 'qu
           )}
         </ActionForm>
       )}
+    </div>
+  );
+}
+
+/**
+ * Client email that Gmail sync could not pin to one deal shows on every deal of the
+ * client. Say so, and let someone file it here; replies in the thread then follow it.
+ */
+function UnfiledNote({ dealId, messageIds, canFile }: { dealId: string; messageIds: string[]; canFile: boolean }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t border-[var(--line)] px-2.5 py-1.5 text-[12px] text-[var(--ink-muted)]">
+      <span>Showing on every deal of this client until it is filed.</span>
+      {canFile && (
+        <button
+          type="button"
+          className="font-medium text-[var(--accent-ink)] hover:underline disabled:opacity-40"
+          disabled={pending}
+          data-testid="file-thread-here"
+          onClick={() =>
+            start(async () => {
+              setError(null);
+              for (const id of messageIds) {
+                const r = await attachEmailToDealAction(id, dealId);
+                if (!r.ok) {
+                  setError(r.error);
+                  return;
+                }
+              }
+              router.refresh();
+            })
+          }
+        >
+          {pending ? 'Filing…' : 'File on this deal'}
+        </button>
+      )}
+      {error && <span className="text-[var(--red)]">{error}</span>}
     </div>
   );
 }

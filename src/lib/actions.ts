@@ -7,6 +7,7 @@ import { requireProfile, asActor, DEV_PROFILE_COOKIE, devAuthEnabled } from './a
 import { SESSION_COOKIE } from './session';
 import { query, write, tx, readableError } from './db';
 import { alertHealthRed } from './alerts';
+import { clientDomain } from './email-domains';
 
 export type Result = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -108,13 +109,12 @@ export async function createContactAction(clientId: string, f: FormData): Promis
          str(f, 'role'), str(f, 'notes')],
       );
       // CL-8: remember the email domain so Gmail sync and the bot can map mail to a client
-      if (email && email.includes('@')) {
-        const domain = email.split('@')[1].toLowerCase();
-        if (!['gmail.com','outlook.com','yahoo.com','hotmail.com','revspot.ai'].includes(domain)) {
-          await c.query(
-            'insert into client_domains (client_id, domain) values ($1,$2) on conflict do nothing',
-            [clientId, domain]);
-        }
+      // A domain someone removed by hand stays removed (on conflict do nothing).
+      const domain = email && email.includes('@') ? clientDomain(email, process.env.ALLOWED_EMAIL_DOMAIN) : null;
+      if (domain) {
+        await c.query(
+          'insert into client_domains (client_id, domain) values ($1,$2) on conflict do nothing',
+          [clientId, domain]);
       }
     });
     revalidatePath(`/clients/${clientId}`);

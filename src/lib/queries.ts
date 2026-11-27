@@ -266,10 +266,14 @@ export async function interactionsFor(
     direction: string | null;
     participants: string[] | null;
     logged_by_name: string | null;
+    deal_id: string | null;
+    deal_title: string | null;
+    subject: string | null;
   }>(
     asActor(me),
-    `select i.*, p.name logged_by_name from interactions i
+    `select i.*, p.name logged_by_name, d.title deal_title from interactions i
        left join profiles p on p.id = i.logged_by
+       left join deals d on d.id = i.deal_id
       ${where.length ? 'where ' + where.join(' and ') : ''}
       order by i.occurred_at desc limit $${vals.length}`,
     vals,
@@ -307,7 +311,7 @@ export async function contactsForDeal(me: Profile, dealId: string) {
     asActor(me),
     `select c.id, c.name, c.title, c.email, c.role, c.last_contacted_at
        from deal_contacts dc join contacts c on c.id = dc.contact_id
-      where dc.deal_id = $1 and c.archived_at is null
+      where dc.deal_id = $1 and dc.removed_at is null and c.archived_at is null
       order by case c.role when 'decision_maker' then 0 when 'champion' then 1
                            when 'day_to_day' then 2 when 'tech' then 3 when 'finance' then 4 else 5 end,
                c.name`,
@@ -376,4 +380,16 @@ export async function searchAll(me: Profile, q: string) {
     ),
   ]);
   return { clients, deals };
+}
+
+/** The email domains Gmail sync uses to recognise this client's mail. */
+export async function clientDomainsFor(me: Profile, clientId: string) {
+  return query<{ id: string; domain: string; created_at: string; added_by: string | null }>(
+    asActor(me),
+    `select cd.id, cd.domain, cd.created_at, p.name as added_by
+       from client_domains cd left join profiles p on p.id = cd.created_by
+      where cd.client_id = $1 and cd.removed_at is null
+      order by cd.domain`,
+    [clientId],
+  );
 }

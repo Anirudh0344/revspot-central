@@ -10,6 +10,7 @@ import {
   stages,
   tasksFor,
   contactsForDeal,
+  contactsFor,
 } from '@/lib/queries';
 import { inr, istDate, relativeDue } from '@/lib/format';
 import { Badge, Card, CategoryTag, Code, Empty, Field, HealthDot, TermTag } from '@/components/ui';
@@ -25,9 +26,10 @@ import { playbooksFor, runsForDeal } from '@/lib/playbooks';
 import { RunPanel, StartPlaybook } from '@/components/playbooks';
 import { dealTimeline, BLOCKER_LABEL } from '@/lib/timeline';
 import { Timeline } from '@/components/timeline';
-import { AskForm, AskLink, BlockerForm, CrmToggle } from '@/components/questions';
+import { AskForm, BlockerForm, CrmToggle } from '@/components/questions';
 import { query } from '@/lib/db';
 import { asActor } from '@/lib/auth';
+import { DealContacts } from '@/components/email-link';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +66,7 @@ export default async function DealPage({
         asActor(me), 'select blocked_on, blocker_note, blocked_since, open_questions from deal_signals where deal_id = $1', [deal.id]),
       query<{ n: number }>(asActor(me), `select count(*)::int as n from mail_accounts where can_read and status = 'connected'`),
     ]);
+  const clientContacts = await contactsFor(me, deal.client_id);
   const signal = signals[0];
   const askable = people.filter((p) => p.role !== 'bot');
   const openRuns = runs.filter((r) => r.status === 'in_progress');
@@ -100,7 +103,7 @@ export default async function DealPage({
             <Badge tone="bad" testId="deal-stuck">Stuck on {BLOCKER_LABEL[signal.blocked_on]}</Badge>
           )}
           {signal?.open_questions > 0 && (
-            <a href="#ask"><Badge tone="warn">{signal.open_questions} open {signal.open_questions === 1 ? 'question' : 'questions'}</Badge></a>
+            <Badge tone="warn">{signal.open_questions} open {signal.open_questions === 1 ? 'question' : 'questions'}</Badge>
           )}
           {deal.stage_flag !== 'ok' && (
             <Badge tone={deal.stage_flag === 'red' ? 'bad' : 'warn'}>
@@ -119,6 +122,13 @@ export default async function DealPage({
                 Context doc ↗
               </a>
             )}
+            <Link
+              href={`/deals/${deal.id}?ask=general#ask`}
+              className="text-[12px] text-[var(--accent-ink)] hover:underline"
+              data-testid="ask-link"
+            >
+              Ask a teammate
+            </Link>
             <Link
               href={`/deals/${deal.id}/summary`}
               className="text-[12px] text-[var(--accent-ink)] hover:underline"
@@ -163,6 +173,14 @@ export default async function DealPage({
         {/* left column */}
         <div className="space-y-5 lg:col-span-2">
           <Card title="Activity history" testId="panel-activity" count={timeline.items.length}>
+            <div className="mb-3">
+              <Disclosure label="Log a call, meeting or note" testId="log-interaction">
+                <p className="mb-2 text-[12px] text-[var(--ink-faint)]">
+                  Pick a future time to schedule it; it shows under Upcoming below.
+                </p>
+                <LogInteractionForm clientId={deal.client_id} dealId={deal.id} deals={[]} />
+              </Disclosure>
+            </div>
             <Timeline
               dealId={deal.id}
               items={timeline.items}
@@ -170,6 +188,7 @@ export default async function DealPage({
               counts={timeline.counts}
               meId={me.id}
               mailboxes={mailboxes[0]?.n ?? 0}
+              canFile={me.role !== 'viewer'}
             />
             {me.role === 'admin' && (
               <div className="mt-3 border-t border-[var(--line)] pt-3">
@@ -196,11 +215,11 @@ export default async function DealPage({
             <StartPlaybook dealId={deal.id} playbooks={playbookChoices} />
           </Card>
 
-          <Card title="Success criteria" testId="panel-criteria" action={<AskLink dealId={deal.id} anchor="criteria" />}>
+          <Card title="Success criteria" testId="panel-criteria">
             <CriteriaPanel deal={deal} />
           </Card>
 
-          <Card title="Snapshot" testId="panel-snapshot" action={<AskLink dealId={deal.id} anchor="snapshot" />}>
+          <Card title="Snapshot" testId="panel-snapshot">
             <SnapshotEditor deal={deal} people={people} />
           </Card>
 
@@ -208,12 +227,7 @@ export default async function DealPage({
             title="Billing"
             testId="panel-billing"
             count={bills.length}
-            action={
-              <span className="flex items-center gap-3">
-                {billing && <BillingStateBadge state={billing.billing_state} />}
-                <AskLink dealId={deal.id} anchor="billing" />
-              </span>
-            }
+            action={billing ? <BillingStateBadge state={billing.billing_state} /> : undefined}
           >
             {bills.length === 0 ? (
               <Empty>
@@ -287,11 +301,11 @@ export default async function DealPage({
                       <td className="py-1.5 text-right tabular-nums">{inr(li.amount)}</td>
                       <td className="py-1.5 text-right tabular-nums">
                         {Number(li.delivered_quantity)}
-                        <span className="ml-1 text-[12px] text-[var(--ink-faint)]">
-                          {Number(li.quantity) > 0
-                            ? `${Math.round((Number(li.delivered_quantity) / Number(li.quantity)) * 100)}%`
-                            : ''}
-                        </span>
+                        {Number(li.quantity) > 0 && (
+                          <span className="ml-1 text-[12px] text-[var(--ink-faint)]">
+                            ({Math.round((Number(li.delivered_quantity) / Number(li.quantity)) * 100)}%)
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -308,27 +322,20 @@ export default async function DealPage({
               </table>
             )}
             <div className="mt-4 border-t border-[var(--line)] pt-3">
-              <AddLineItemForm dealId={deal.id} />
+              <Disclosure label="Add a line item" testId="add-line-item">
+                <AddLineItemForm dealId={deal.id} />
+              </Disclosure>
             </div>
           </Card>
 
-          <Card title="Contacts" count={contacts.length} action={<AskLink dealId={deal.id} anchor="contacts" />}>
-            <ul className="flex flex-wrap gap-2">
-              {contacts.map((c) => (
-                <li
-                  key={c.id}
-                  className="rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-[13px]"
-                >
-                  {c.name}
-                  <span className="ml-1.5 text-[12px] text-[var(--ink-muted)]">{c.role.replaceAll('_', ' ')}</span>
-                </li>
-              ))}
-              {contacts.length === 0 && (
-                <Empty>
-                  No one linked to this deal yet. The client&rsquo;s contacts are on its page.
-                </Empty>
-              )}
-            </ul>
+          <Card title="Contacts" count={contacts.length}>
+            <DealContacts
+              dealId={deal.id}
+              clientId={deal.client_id}
+              linked={contacts}
+              clientContacts={clientContacts}
+              canWrite={me.role !== 'viewer'}
+            />
           </Card>
 
 
@@ -336,8 +343,17 @@ export default async function DealPage({
 
         {/* right column */}
         <div className="space-y-5">
+          {sp.ask && (
           <section id="ask" className="scroll-mt-4">
-            <Card title="Ask a question" testId="panel-ask" count={signal?.open_questions || undefined}>
+            <Card
+              title="Ask a teammate"
+              testId="panel-ask"
+              action={
+                <Link href={`/deals/${deal.id}`} className="text-[12px] text-[var(--ink-muted)] hover:underline">
+                  Close
+                </Link>
+              }
+            >
               <AskForm
                 key={`${sp.ask ?? ''}-${sp.about ?? ''}`}
                 dealId={deal.id}
@@ -351,20 +367,22 @@ export default async function DealPage({
               </p>
             </Card>
           </section>
-
-          {!deal.stage_is_terminal && (
-            <Card title="Stuck?" testId="panel-blocker">
-              {signal?.blocked_on && (
-                <p className="mb-2 rounded-md bg-[var(--red-soft)] px-2.5 py-1.5 text-[12px] text-[var(--red)]">
-                  Waiting on {BLOCKER_LABEL[signal.blocked_on]} since {istDate(signal.blocked_since)}: {signal.blocker_note}
-                </p>
-              )}
-              <BlockerForm dealId={deal.id} blockedOn={signal?.blocked_on ?? null} note={signal?.blocker_note ?? null} />
-            </Card>
           )}
 
           <Card title="Health" testId="panel-health">
             <DealControls deal={deal} stages={stageList} />
+            {!deal.stage_is_terminal && (
+              <div className="mt-3 border-t border-[var(--line)] pt-3" data-testid="panel-blocker">
+                {signal?.blocked_on && (
+                  <p className="mb-2 rounded-md bg-[var(--red-soft)] px-2.5 py-1.5 text-[12px] text-[var(--red)]">
+                    Waiting on {BLOCKER_LABEL[signal.blocked_on]} since {istDate(signal.blocked_since)}: {signal.blocker_note}
+                  </p>
+                )}
+                <Disclosure label={signal?.blocked_on ? 'Change what it waits on' : 'Waiting on someone?'} testId="blocker-toggle">
+                  <BlockerForm dealId={deal.id} blockedOn={signal?.blocked_on ?? null} note={signal?.blocker_note ?? null} />
+                </Disclosure>
+              </div>
+            )}
             {history.length > 0 && (
               <ol className="mt-4 space-y-2 border-t border-[var(--line)] pt-3">
                 {history.map((h, i) => (
@@ -382,7 +400,7 @@ export default async function DealPage({
             )}
           </Card>
 
-          <Card title="Next step" testId="panel-next-step" action={<AskLink dealId={deal.id} anchor="next_step" />}>
+          <Card title="Next step" testId="panel-next-step">
             {deal.next_step ? (
               <>
                 <p className="text-[13px]">{deal.next_step}</p>
@@ -397,7 +415,7 @@ export default async function DealPage({
             )}
           </Card>
 
-          <Card title="Tasks" testId="panel-tasks" count={tasks.length} action={<AskLink dealId={deal.id} anchor="tasks" />}>
+          <Card title="Tasks" testId="panel-tasks" count={tasks.length}>
             <ul className="divide-y divide-[var(--line)]">
               {tasks.map((t) => (
                 <li key={t.id} className="flex items-center gap-2 py-2">
@@ -409,16 +427,12 @@ export default async function DealPage({
               {tasks.length === 0 && <Empty>No open tasks.</Empty>}
             </ul>
             <div className="mt-3 border-t border-[var(--line)] pt-3">
-              <AddTaskForm dealId={deal.id} clientId={deal.client_id} people={people} />
+              <Disclosure label="Add a task" testId="add-task">
+                <AddTaskForm dealId={deal.id} clientId={deal.client_id} people={people} />
+              </Disclosure>
             </div>
           </Card>
 
-          <Card title="Log a call, meeting or note" testId="panel-interactions">
-            <p className="mb-2 text-[12px] text-[var(--ink-faint)]">
-              Pick a future time to schedule it; it shows under Upcoming in the activity history.
-            </p>
-            <LogInteractionForm clientId={deal.client_id} dealId={deal.id} deals={[]} />
-          </Card>
         </div>
       </div>
     </div>

@@ -1,5 +1,7 @@
-import type { ClientUsage, UsageTrend } from '@/lib/usage';
-import { count, istDateTime, pct, usageChangeText } from '@/lib/format';
+import type { ClientUsage, UsageDay, UsageTrend } from '@/lib/usage';
+import type { UsageRange } from '@/lib/usage-range';
+import { UsageTrend as UsageTrendChart } from './usage-trend';
+import { istDateTime, pct, usageChangeText } from '@/lib/format';
 import { Badge } from './ui';
 
 const TREND: Record<UsageTrend, { label: string; tone: 'bad' | 'warn' | 'good' | 'neutral' }> = {
@@ -32,49 +34,64 @@ function worst(u: ClientUsage) {
   return drops.length ? pct(Math.min(...drops)) : '';
 }
 
-/** Last 30 days vs the 30 before, one row per metric, plus weekly bars. */
+/** Change in whole percent, or null when there is nothing to compare against. */
+const changePct = (cur: number, prev: number) => (prev > 0 ? Math.round((100 * (cur - prev)) / prev) : null);
+
+const shortDate = (d: string) =>
+  new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d));
+
+/**
+ * The chosen date range against the same number of days just before it, with a daily
+ * trend per metric. The flag (badge) is separate: always last 30 days vs the 30 before.
+ */
 export function UsagePanel({
   usage,
-  weeks,
+  range,
+  totals,
+  days,
 }: {
   usage: ClientUsage;
-  weeks: { week_start: string; leads: number; calls: number }[];
+  range: UsageRange;
+  totals: { prev_from: string; prev_to: string; leads: number; calls: number; leads_prev: number; calls_prev: number };
+  days: UsageDay[];
 }) {
   const rows = [
-    { key: 'leads', label: 'Leads processed', cur: usage.leads_30, prev: usage.leads_prev, change: usage.leads_change_pct },
-    { key: 'calls', label: 'Bot calls', cur: usage.calls_30, prev: usage.calls_prev, change: usage.calls_change_pct },
+    { key: 'leads', label: 'Leads processed', cur: totals.leads, prev: totals.leads_prev },
+    { key: 'calls', label: 'Bot calls', cur: totals.calls, prev: totals.calls_prev },
   ] as const;
+  const span = (f: string, t: string) => (f === t ? shortDate(f) : `${shortDate(f)} – ${shortDate(t)}`);
   return (
-    <div className="space-y-4" data-testid="usage-panel">
-      <table className="w-full text-[13px]">
+    <div className="space-y-5" data-testid="usage-panel">
+      <UsageTrendChart days={days} />
+
+      <table className="w-full text-[13px]" data-testid="usage-range-table">
         <thead className="text-left">
           <tr>
             <th className="t-label pb-2">Metric</th>
-            <th className="t-label pb-2 text-right">Last 30 days</th>
-            <th className="t-label pb-2 text-right">30 days before</th>
+            <th className="t-label pb-2 text-right">{span(range.from, range.to)}</th>
+            <th className="t-label pb-2 text-right">{span(totals.prev_from, totals.prev_to)}</th>
             <th className="t-label pb-2 text-right">Change</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--line)]">
-          {rows.map((r) => (
-            <tr key={r.key} data-testid={`usage-row-${r.key}`}>
-              <td className="py-2">{r.label}</td>
-              <td className="py-2 text-right tabular-nums">{Number(r.cur).toLocaleString('en-IN')}</td>
-              <td className="py-2 text-right tabular-nums text-[var(--ink-muted)]">{Number(r.prev).toLocaleString('en-IN')}</td>
-              <td className={`py-2 text-right tabular-nums ${changeClass(r.change, r.prev)}`}>{pct(r.change)}</td>
-            </tr>
-          ))}
+          {rows.map((r) => {
+            const change = changePct(r.cur, r.prev);
+            return (
+              <tr key={r.key} data-testid={`usage-row-${r.key}`}>
+                <td className="py-2">{r.label}</td>
+                <td className="py-2 text-right tabular-nums">{Number(r.cur).toLocaleString('en-IN')}</td>
+                <td className="py-2 text-right tabular-nums text-[var(--ink-muted)]">{Number(r.prev).toLocaleString('en-IN')}</td>
+                <td className={`py-2 text-right tabular-nums ${changeClass(change, r.prev)}`}>{pct(change)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Bars title="Leads per week" values={weeks.map((w) => ({ x: w.week_start, v: w.leads }))} />
-        <Bars title="Bot calls per week" values={weeks.map((w) => ({ x: w.week_start, v: w.calls }))} />
-      </div>
-
       <p className="text-[12px] text-[var(--ink-faint)]">
-        From the Revspot admin data. A metric is flagged when it falls 20% or more from at least 100 the month
-        before. Last synced {istDateTime(usage.synced_at)}.
+        From the Revspot admin data. The usage flag always compares the last 30 days with the 30 before
+        (leads {pct(usage.leads_change_pct)}, bot calls {pct(usage.calls_change_pct)}); it fires when a metric
+        falls 20% or more from at least 100. Last synced {istDateTime(usage.synced_at)}.
       </p>
     </div>
   );
@@ -85,28 +102,4 @@ function changeClass(change: number | null, prev: number) {
   if (change <= -20) return 'font-medium text-[var(--red)]';
   if (change >= 20) return 'text-[var(--green-ink)]';
   return '';
-}
-
-/** Eight weekly bars, oldest on the left, one hue. */
-function Bars({ title, values }: { title: string; values: { x: string; v: number }[] }) {
-  const max = Math.max(1, ...values.map((d) => d.v));
-  return (
-    <div>
-      <p className="t-label">{title}</p>
-      <div className="mt-2 flex h-20 items-end gap-1" role="img" aria-label={`${title}, last 8 weeks`}>
-        {values.map((d) => (
-          <div key={d.x} className="flex h-full flex-1 flex-col justify-end" title={`Week of ${d.x}: ${d.v.toLocaleString('en-IN')}`}>
-            <div
-              className="rounded-t-[2px] bg-[var(--accent-200)]"
-              style={{ height: `${d.v === 0 ? 0 : Math.max(3, (100 * d.v) / max)}%` }}
-            />
-          </div>
-        ))}
-      </div>
-      <div className="mt-1 flex justify-between text-[11px] text-[var(--ink-faint)]">
-        <span>8 weeks ago</span>
-        <span>{count(values.at(-1)?.v)} last week</span>
-      </div>
-    </div>
-  );
 }

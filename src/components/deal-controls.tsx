@@ -232,15 +232,11 @@ export function SnapshotEditor({
     return (
       <div>
         <dl className="grid gap-3 sm:grid-cols-3">
-          <Static label="Title" value={deal.title} />
-          <Static label="Code" value={deal.code} />
-          <Static label="Product" value={deal.product} />
+          {/* Title, code, product, context doc and next step are already in the header and
+              the Next step card; this shows only what appears nowhere else. */}
           <Static label="Projects" value={deal.projects?.join(', ') ?? null} />
           <Static label="Commercial model" value={deal.commercial_model?.replace(/_/g, ' ') ?? null} />
-          <Static label="Context doc" value={deal.context_doc_url} />
-          <Static label="Next step" value={deal.next_step} />
-          <Static label="Next step due" value={deal.next_step_due} />
-          <Static label="Close reason" value={deal.close_reason} />
+          {deal.close_reason && <Static label="Close reason" value={deal.close_reason} />}
         </dl>
         <button
           type="button"

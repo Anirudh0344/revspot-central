@@ -4,6 +4,7 @@ import { currentProfile } from '@/lib/auth';
 import {
   activityFor,
   clientById,
+  clientDomainsFor,
   contactsFor,
   dealList,
   interactionsFor,
@@ -17,10 +18,20 @@ import { btn, Disclosure } from '@/components/forms';
 import { billingAccountsFor, billsForClient, clientBilling } from '@/lib/billing';
 import { BillList } from '@/components/billing-view';
 import { AddBillingAccountForm } from '@/components/billing';
-import { unlinkedWorkspaces, usageForClient, usageSourcesFor, usageWeeks } from '@/lib/usage';
+import {
+  unlinkedWorkspaces,
+  usageDaily,
+  usageBounds,
+  usageForClient,
+  usageRangeTotals,
+  usageSourcesFor,
+} from '@/lib/usage';
+import { resolveUsageRange } from '@/lib/usage-range';
+import { UsageRangeFilter } from '@/components/usage-trend';
 import { UsageBadge, UsagePanel } from '@/components/usage-view';
 import { LinkUsageWorkspaceForm, SyncUsageButton, UnlinkUsageWorkspaceButton } from '@/components/usage-forms';
 import { count } from '@/lib/format';
+import { ClientDomains, FileEmailOnDeal } from '@/components/email-link';
 
 export const dynamic = 'force-dynamic';
 // "Sync now" runs the usage sync in this page's server action; a first backfill takes ~90s.
@@ -33,26 +44,31 @@ export default async function ClientPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; range?: string; from?: string; to?: string }>;
 }) {
   const me = await currentProfile();
   if (!me) redirect('/login');
   const { id } = await params;
-  const { tab: rawTab } = await searchParams;
+  const sp = await searchParams;
+  const rawTab = sp.tab;
   const tab = (TABS as readonly string[]).includes(rawTab ?? '') ? rawTab! : 'deals';
 
   const client = await clientById(me, id);
   if (!client) notFound();
 
-  const [usage, sources, weeks, freeWorkspaces] = await Promise.all([
+  const onUsage = tab === 'usage';
+  const bounds = onUsage ? await usageBounds(me) : { earliest: null, through: null };
+  const range = resolveUsageRange(sp, bounds.through);
+  const [usage, sources, usageDays, usageTotals, freeWorkspaces] = await Promise.all([
     usageForClient(me, id),
-    tab === 'usage' ? usageSourcesFor(me, id) : [],
-    tab === 'usage' ? usageWeeks(me, id) : [],
-    tab === 'usage' ? unlinkedWorkspaces(me) : [],
+    onUsage ? usageSourcesFor(me, id) : [],
+    onUsage ? usageDaily(me, id, range.from, range.to) : [],
+    onUsage ? usageRangeTotals(me, id, range.from, range.to) : null,
+    onUsage ? unlinkedWorkspaces(me) : [],
   ]);
   const canWrite = me.role !== 'viewer';
 
-  const [deals, contacts, interactions, activity, people, billing, bills, accounts] = await Promise.all([
+  const [deals, contacts, interactions, activity, people, billing, bills, accounts, domains] = await Promise.all([
     dealList(me, { client: id, includeTerminal: true }),
     contactsFor(me, id),
     interactionsFor(me, { clientId: id, limit: 25 }),
@@ -61,7 +77,11 @@ export default async function ClientPage({
     clientBilling(me, id),
     billsForClient(me, id),
     billingAccountsFor(me, id),
+    clientDomainsFor(me, id),
   ]);
+  const liveDeals = deals
+    .filter((d) => !d.stage_is_terminal && !d.archived_at)
+    .map((d) => ({ id: d.id, title: d.title }));
 
   return (
     <div className="space-y-5">
@@ -93,8 +113,6 @@ export default async function ClientPage({
           <Field label="Last interaction">{istDate(client.last_interaction_at)}</Field>
           <Field label="Segment">{client.segment ?? '—'}</Field>
           <Field label="City">{client.city ?? '—'}</Field>
-          <Field label="Legal name">{client.legal_name ?? '—'}</Field>
-          <Field label="GSTIN">{client.gstin ?? '—'}</Field>
         </dl>
         {billing && (
           <dl
@@ -152,12 +170,16 @@ export default async function ClientPage({
         </div>
       )}
 
+      {tab === 'usage' && usage && sources.length > 0 && (
+        <UsageRangeFilter key={`${range.from}-${range.to}`} range={range} earliest={bounds.earliest} through={bounds.through} />
+      )}
+
       {tab === 'usage' && (
         <div className="grid gap-5 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <Card title="Usage" action={me.role === 'admin' ? <SyncUsageButton /> : undefined} testId="usage-card">
-              {usage && sources.length > 0 ? (
-                <UsagePanel usage={usage} weeks={weeks} />
+              {usage && sources.length > 0 && usageTotals ? (
+                <UsagePanel usage={usage} range={range} totals={usageTotals} days={usageDays} />
               ) : (
                 <Empty>
                   No Revspot workspace is linked to this client yet. Link the workspace(s) it runs on, and its
@@ -208,6 +230,12 @@ export default async function ClientPage({
             </Card>
           </div>
           <div className="space-y-5">
+            <Card title="Client's billing details" testId="client-legal">
+              <dl className="grid gap-3">
+                <Field label="Legal name">{client.legal_name ?? '—'}</Field>
+                <Field label="GSTIN">{client.gstin ?? '—'}</Field>
+              </dl>
+            </Card>
             <Card title="Bill-to parties" count={accounts.length}>
               {accounts.length === 0 ? (
                 <Empty>None yet. Without one, reminders go to the client&apos;s finance contacts.</Empty>
@@ -266,9 +294,14 @@ export default async function ClientPage({
               </ul>
             </Card>
           </div>
-          <Card title="Add a contact">
-            <AddContactForm clientId={id} />
-          </Card>
+          <div className="space-y-5">
+            <Card title="Email domains" count={domains.length} testId="panel-domains">
+              <ClientDomains clientId={id} domains={domains} canWrite={canWrite} />
+            </Card>
+            <Card title="Add a contact">
+              <AddContactForm clientId={id} />
+            </Card>
+          </div>
         </div>
       )}
 
@@ -283,7 +316,19 @@ export default async function ClientPage({
                       {istDateTime(i.occurred_at)} · {i.channel} · {i.direction ?? 'outbound'}
                       {i.logged_by_name ? ` · ${i.logged_by_name}` : ''}
                     </p>
+                    {i.subject && <p className="mt-0.5 text-[13px] font-medium">{i.subject}</p>}
                     <p className="mt-0.5 text-[13px]">{i.summary}</p>
+                    <p className="mt-1 text-[12px]" data-testid={`interaction-deal-${i.id}`}>
+                      {i.deal_id ? (
+                        <Link href={`/deals/${i.deal_id}`} className="text-[var(--ink-muted)] hover:underline">
+                          On {i.deal_title}
+                        </Link>
+                      ) : canWrite && i.channel === 'email' ? (
+                        <FileEmailOnDeal interactionId={i.id} deals={liveDeals} />
+                      ) : (
+                        <span className="text-[var(--ink-faint)]">Not on a deal</span>
+                      )}
+                    </p>
                     {i.next_step && (
                       <p className="mt-0.5 text-[12px] text-[var(--ink-muted)]">
                         Next: {i.next_step}
