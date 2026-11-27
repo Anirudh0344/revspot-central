@@ -1,8 +1,8 @@
 import { pool } from '@/lib/db';
 import { devAuthEnabled } from '@/lib/auth';
-import { devSignIn } from '@/lib/actions';
-import { googleSignInEnabled } from '@/lib/session';
-import { btnPrimary } from '@/components/forms';
+import { codeSignIn, devSignIn } from '@/lib/actions';
+import { accessCodeEnabled, googleSignInEnabled } from '@/lib/session';
+import { btnPrimary, input } from '@/components/forms';
 import { withBase } from '@/lib/base-path';
 
 export default async function LoginPage({
@@ -11,6 +11,57 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+
+  // Until Google is set up: the shared access code, then pick who you are.
+  if (accessCodeEnabled()) {
+    const { rows } = await pool.query<{ id: string; name: string; role: string }>(
+      `select id, name, role from profiles where is_active and role <> 'bot' order by role, name`,
+    );
+    return (
+      <div className="mx-auto max-w-sm pt-16">
+        <h1 className="text-[18px] font-semibold">Sign in to Revspot Central</h1>
+        <p className="mt-1 text-[13px] text-[var(--ink-muted)]">Enter the team access code and pick who you are.</p>
+        <form action={codeSignIn} className="mt-6 space-y-3" data-testid="code-sign-in">
+          <label className="t-label block">
+            Who are you?
+            <select name="profile_id" required defaultValue="" className={`${input} mt-1`} data-testid="code-profile">
+              <option value="" disabled>
+                Pick your name
+              </option>
+              {rows.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.role})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="t-label block">
+            Access code
+            <input
+              name="code"
+              type="password"
+              required
+              autoComplete="current-password"
+              className={`${input} mt-1`}
+              data-testid="code-input"
+            />
+          </label>
+          <button className={`${btnPrimary} w-full`} data-testid="code-submit">
+            Sign in
+          </button>
+        </form>
+        {error && (
+          <p className="mt-4 rounded-md bg-[var(--red-soft)] px-3 py-2 text-[13px] text-[var(--red)]" role="alert">
+            {error}
+          </p>
+        )}
+        <p className="mt-6 text-[12px] text-[var(--ink-faint)]">
+          Don&apos;t have the code? Ask an admin. This is temporary until Google sign-in is set up.
+        </p>
+      </div>
+    );
+  }
+
   if (!devAuthEnabled()) {
     return (
       <div className="mx-auto max-w-md pt-16 text-center">

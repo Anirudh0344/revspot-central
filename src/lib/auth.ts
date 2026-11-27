@@ -1,7 +1,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { pool, type Actor } from './db';
-import { googleSignInEnabled, readSession, SESSION_COOKIE } from './session';
+import { readSession, SESSION_COOKIE, googleSignInEnabled } from './session';
 
 export type Profile = {
   id: string;
@@ -15,16 +15,17 @@ const DEV_COOKIE = 'cc_dev_profile';
 
 /**
  * Who is signed in.
- *  - With Google configured: a signed session cookie set after Google sign-in,
- *    restricted to the company domain.
- *  - Without it, on a developer's machine only: pick a profile on /login.
- * In production with neither, nobody can sign in, by design.
+ *  - A signed session cookie, set after Google sign-in (restricted to the company
+ *    domain) or, until Google is set up, after the shared ACCESS_CODE.
+ *  - On a developer's machine only: pick a profile on /login (unsigned cookie).
+ * In production with neither Google nor an access code, nobody can sign in, by design.
  */
 export async function currentProfile(): Promise<Profile | null> {
   const jar = await cookies();
   let userId: string | null = null;
 
-  if (googleSignInEnabled()) userId = readSession(jar.get(SESSION_COOKIE)?.value);
+  // readSession only trusts a cookie this server signed (needs SESSION_SECRET).
+  userId = readSession(jar.get(SESSION_COOKIE)?.value);
   if (!userId && devAuthEnabled()) userId = jar.get(DEV_COOKIE)?.value ?? null;
 
   if (!userId || !/^[0-9a-f-]{36}$/i.test(userId)) return null;

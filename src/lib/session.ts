@@ -42,3 +42,19 @@ export function readSession(token: string | undefined): string | null {
 /** Google sign-in is on once the OAuth client and a session secret exist. */
 export const googleSignInEnabled = () =>
   Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.SESSION_SECRET);
+
+/**
+ * Stop-gap until Google is set up: one shared ACCESS_CODE unlocks a pick-your-profile
+ * sign-in that issues the same signed session as Google. Off as soon as Google is
+ * configured, and needs SESSION_SECRET so the cookie can't be forged.
+ */
+export const accessCodeEnabled = () =>
+  !googleSignInEnabled() && Boolean(process.env.ACCESS_CODE && process.env.SESSION_SECRET);
+
+/** Constant-time check of a submitted access code (both sides hashed to equal length). */
+export function accessCodeMatches(given: string): boolean {
+  const want = process.env.ACCESS_CODE;
+  if (!want) return false;
+  const h = (v: string) => createHmac('sha256', 'access-code').update(v).digest();
+  return timingSafeEqual(h(given.trim()), h(want.trim()));
+}

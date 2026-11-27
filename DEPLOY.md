@@ -63,6 +63,7 @@ manager's config:
 | `MAIL_TOKEN_KEY` | `openssl rand -base64 32` (new value) |
 | `CRON_SECRET` | `openssl rand -hex 24` |
 | `SLACK_WEBHOOK_URL` | optional: a Slack incoming webhook for the alerts channel |
+| `ACCESS_CODE` | until Google is set up: shared code for pick-your-profile sign-in |
 | `MONGODB_URI` | read-only connection string to the Revspot admin Mongo, for client usage; without it the usage sync skips |
 | `REVV_DB` | `revv` |
 
@@ -125,8 +126,12 @@ How the app fits Marketplace:
 
 1. Fill the blanks in `.env` (kept out of git; it ships inside the zip):
    `DATABASE_URL` (production Postgres reachable from the Marketplace server),
-   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`. Without Google, nobody can sign in:
-   the pick-a-profile sign-in is disabled in production.
+   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` when Google is ready. Until then,
+   `ACCESS_CODE` (generated in `.env`) is the team's sign-in: enter it on /login and
+   pick your profile; it gives the same signed session as Google. Anyone with the
+   code can pick any profile, admin included, so share it only with the team, and
+   change it to sign everyone out of new sign-ins. Once the Google keys are set,
+   the access code stops working and Google takes over.
 2. In the Google OAuth client, add the redirect URI
    `https://marketplace.revspot.ai/p/cs-dashboard-1/api/google/callback`.
 3. Apply migrations to that database: `PROD_DATABASE_URL='…' npm run db:deploy`.

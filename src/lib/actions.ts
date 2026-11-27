@@ -1,10 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { requireProfile, asActor, DEV_PROFILE_COOKIE, devAuthEnabled } from './auth';
-import { SESSION_COOKIE } from './session';
+import { SESSION_COOKIE, SESSION_DAYS, accessCodeEnabled, accessCodeMatches, signSession } from './session';
+import { appUrl } from './gmail';
 import { query, write, tx, readableError } from './db';
 import { alertHealthRed } from './alerts';
 import { clientDomain } from './email-domains';
@@ -436,6 +437,44 @@ export async function devSignIn(profileId: string): Promise<void> {
   if (!devAuthEnabled()) redirect('/login');
   const jar = await cookies();
   jar.set(DEV_PROFILE_COOKIE, profileId, { httpOnly: true, sameSite: 'lax', path: '/' });
+  redirect('/');
+}
+
+// Wrong access codes per client address: after 8 in 15 minutes, that address waits.
+const codeFailures = new Map<string, number[]>();
+const CODE_WINDOW_MS = 15 * 60_000;
+const CODE_MAX_FAILURES = 8;
+
+/** Sign in with the shared access code (until Google sign-in is set up). */
+export async function codeSignIn(f: FormData): Promise<void> {
+  if (!accessCodeEnabled()) redirect('/login');
+  const h = await headers();
+  const ip = (h.get('x-forwarded-for') ?? h.get('x-real-ip') ?? 'unknown').split(',')[0].trim();
+  const now = Date.now();
+  const recent = (codeFailures.get(ip) ?? []).filter((t) => now - t < CODE_WINDOW_MS);
+  if (recent.length >= CODE_MAX_FAILURES) {
+    redirect(`/login?error=${encodeURIComponent('Too many wrong codes. Try again in 15 minutes.')}`);
+  }
+
+  const profileId = str(f, 'profile_id') ?? '';
+  if (!accessCodeMatches(str(f, 'code') ?? '')) {
+    codeFailures.set(ip, [...recent, now]);
+    await new Promise((r) => setTimeout(r, 800));
+    redirect(`/login?error=${encodeURIComponent('That access code is not right.')}`);
+  }
+  const rows = await query<{ id: string }>(null,
+    'select id from profiles where id = $1::uuid and is_active', [/^[0-9a-f-]{36}$/i.test(profileId) ? profileId : null]);
+  if (!rows.length) redirect(`/login?error=${encodeURIComponent('Pick who you are.')}`);
+
+  codeFailures.delete(ip);
+  const jar = await cookies();
+  jar.set(SESSION_COOKIE, signSession(rows[0].id), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: appUrl().startsWith('https://'),
+    path: '/',
+    maxAge: SESSION_DAYS * 86400,
+  });
   redirect('/');
 }
 
