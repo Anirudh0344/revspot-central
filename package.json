@@ -15,7 +15,8 @@
     "db:wipe": "bash scripts/db.sh wipe",
     "db:backup": "bash scripts/db.sh backup",
     "db:publish": "bash scripts/db.sh publish",
-    "db:deploy": "bash scripts/db.sh deploy"
+    "db:deploy": "bash scripts/db.sh deploy",
+    "start:prod": "node server.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

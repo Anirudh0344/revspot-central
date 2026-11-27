@@ -18,6 +18,7 @@ import type { Stage } from '@/lib/queries';
 import type { DealRow } from '@/lib/types';
 import { DealCard, type CardFlags } from './ui';
 import { btn, btnQuiet, input } from './forms';
+import { withBase } from '@/lib/base-path';
 
 type MoveFn = (id: string, stage: string, reason?: string, closeReason?: string) => Promise<Result>;
 
@@ -137,7 +138,7 @@ export function Board({
             </div>
           )}
           <div className="mt-2 flex gap-3">
-            <a className={btnQuiet} href={`/deals/${blocked.deal.id}`}>
+            <a className={btnQuiet} href={withBase(`/deals/${blocked.deal.id}`)}>
               Open the deal and fill what is missing
             </a>
             <button

@@ -3,6 +3,7 @@ import { devAuthEnabled } from '@/lib/auth';
 import { devSignIn } from '@/lib/actions';
 import { googleSignInEnabled } from '@/lib/session';
 import { btnPrimary } from '@/components/forms';
+import { withBase } from '@/lib/base-path';
 
 export default async function LoginPage({
   searchParams,
@@ -19,7 +20,7 @@ export default async function LoginPage({
             <p className="mt-2 text-[13px] text-[var(--ink-muted)]">
               Use your @{process.env.ALLOWED_EMAIL_DOMAIN ?? 'revspot.ai'} Google account.
             </p>
-            <a className={`${btnPrimary} mt-6`} href="/auth/google" data-testid="google-sign-in">
+            <a className={`${btnPrimary} mt-6`} href={withBase('/auth/google')} data-testid="google-sign-in">
               Continue with Google
             </a>
           </>

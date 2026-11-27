@@ -9,6 +9,7 @@ import { DisconnectMailbox, RunButton } from '@/components/billing';
 import { runDailyNowAction, syncMailNowAction } from '@/lib/billing-actions';
 import { recentJobs } from '@/lib/jobs';
 import { slackConfigured } from '@/lib/alerts';
+import { withBase } from '@/lib/base-path';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,7 +70,7 @@ export default async function SettingsPage({
               <Badge tone="good" dot>{sender.email}</Badge>
             ) : (
               <a
-                href="/api/google/connect?purpose=send"
+                href={withBase('/api/google/connect?purpose=send')}
                 className={`${btnPrimary} ${gaps.length || me.role !== 'admin' ? 'pointer-events-none opacity-40' : ''}`}
                 data-testid="connect-finance"
               >
@@ -88,7 +89,7 @@ export default async function SettingsPage({
               <Badge tone="good" dot>{mine.email}</Badge>
             ) : (
               <a
-                href="/api/google/connect?purpose=read"
+                href={withBase('/api/google/connect?purpose=read')}
                 className={`${btn} ${gaps.length ? 'pointer-events-none opacity-40' : ''}`}
                 data-testid="connect-mine"
               >

@@ -1,6 +1,7 @@
 import 'server-only';
 import { query } from './db';
 import { open, seal } from './secret';
+import { BASE_PATH } from './base-path';
 
 /*
   Gmail through Google's own OAuth. Two kinds of mailbox:
@@ -23,8 +24,14 @@ const SCOPES: Record<Purpose, string[]> = {
   read: ['openid', 'email', 'https://www.googleapis.com/auth/gmail.readonly'],
 };
 
+/**
+ * The app's public URL, path prefix included (e.g. https://marketplace.revspot.ai/p/cs-central),
+ * whether or not APP_URL was written with it. Used for redirects, OAuth callbacks and
+ * links in Slack.
+ */
 export function appUrl(): string {
-  return (process.env.APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+  const url = (process.env.APP_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
+  return BASE_PATH && !url.endsWith(BASE_PATH) ? `${url}${BASE_PATH}` : url;
 }
 
 export const redirectUri = () => `${appUrl()}/api/google/callback`;

@@ -1,0 +1,16 @@
+node_modules
+.next
+.next-test
+.git
+.github
+.claude
+backups
+*.zip
+*.tsbuildinfo
+npm-debug.log*
+
+# Local overrides must never reach the image: Next.js loads .env.local over .env,
+# so a developer's local database would silently replace production's.
+.env.local
+.env.*.local
+.env.development
