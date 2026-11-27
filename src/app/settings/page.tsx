@@ -10,6 +10,9 @@ import { runDailyNowAction, syncMailNowAction } from '@/lib/billing-actions';
 import { recentJobs } from '@/lib/jobs';
 import { slackConfigured } from '@/lib/alerts';
 import { withBase } from '@/lib/base-path';
+import { query } from '@/lib/db';
+import { asActor } from '@/lib/auth';
+import { People, type Person } from '@/components/people';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +24,15 @@ export default async function SettingsPage({
   const me = await currentProfile();
   if (!me) redirect('/login');
   const sp = await searchParams;
-  const [accounts, jobs] = await Promise.all([mailAccounts(me), recentJobs(8)]);
+  const [accounts, jobs, people] = await Promise.all([
+    mailAccounts(me),
+    recentJobs(8),
+    query<Person>(
+      asActor(me),
+      `select id, name, email, role::text as role, is_active, is_super_admin from profiles
+        order by is_super_admin desc, case role when 'admin' then 0 when 'bot' then 2 else 1 end, is_active desc, name`,
+    ),
+  ]);
   const gaps = setupGaps();
   const sender = accounts.find((a) => a.can_send && a.status === 'connected');
   const mine = accounts.find((a) => a.email === me.email?.toLowerCase());
@@ -87,6 +98,8 @@ export default async function SettingsPage({
             </div>
             {mine && mine.status === 'connected' ? (
               <Badge tone="good" dot>{mine.email}</Badge>
+            ) : me.role !== 'admin' ? (
+              <span className="text-[12px] text-[var(--ink-faint)]">Only admins connect a mailbox.</span>
             ) : (
               <a
                 href={withBase('/api/google/connect?purpose=read')}
@@ -190,6 +203,10 @@ export default async function SettingsPage({
             </ul>
           )}
         </div>
+      </Card>
+
+      <Card title="People" count={people.length} testId="panel-people">
+        <People people={people} meId={me.id} canManage={me.role === 'admin'} isOwner={me.is_super_admin} />
       </Card>
 
       <Card title="Zoho Billing">

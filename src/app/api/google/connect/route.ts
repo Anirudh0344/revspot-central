@@ -13,6 +13,10 @@ export async function GET(req: NextRequest) {
   if (!me) return Response.redirect(`${appUrl()}/login`);
 
   const purpose: Purpose = req.nextUrl.searchParams.get('purpose') === 'send' ? 'send' : 'read';
+  // Only admins connect a mailbox: its client email syncs into deals everyone sees.
+  if (me.role !== 'admin') {
+    return Response.redirect(`${appUrl()}/settings?error=${encodeURIComponent('Only admins can connect a Gmail mailbox.')}`);
+  }
   if (purpose === 'send' && me.role !== 'admin') {
     return Response.redirect(`${appUrl()}/settings?error=${encodeURIComponent('Only an admin can connect the sending mailbox.')}`);
   }

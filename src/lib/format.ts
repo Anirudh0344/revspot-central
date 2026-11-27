@@ -107,3 +107,11 @@ export function usageChangeText(u: {
     p === null ? null : p === -100 ? `${label} stopped` : `${label} ${pct(p)}`;
   return [part('leads', u.leads_change_pct), part('bot calls', u.calls_change_pct)].filter(Boolean).join(' · ') || 'no comparable volume';
 }
+
+/** What people are called on screen: Owner (the super admin), Admin, User. */
+export function roleLabel(p: { role: string; is_super_admin?: boolean | null }): string {
+  if (p.is_super_admin) return 'Owner';
+  if (p.role === 'admin') return 'Admin';
+  if (p.role === 'bot') return 'Bot';
+  return 'User';
+}

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { requireProfile, asActor, DEV_PROFILE_COOKIE, devAuthEnabled } from './auth';
+import { requireProfile, asActor, DEV_PROFILE_COOKIE, devAuthEnabled, canEdit, VIEW_ONLY_MESSAGE } from './auth';
 import { SESSION_COOKIE, SESSION_DAYS, accessCodeEnabled, accessCodeMatches, signSession } from './session';
 import { appUrl } from './gmail';
 import { query, write, tx, readableError } from './db';
@@ -37,6 +37,7 @@ const num = (f: FormData, k: string): number | null => {
 
 export async function createClientAction(f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const name = str(f, 'name');
   if (!name) return { ok: false, error: 'A client needs a name.' };
   try {
@@ -59,6 +60,7 @@ const CLIENT_FIELDS = ['name','legal_name','gstin','segment','city','intern_owne
 
 export async function updateClientAction(id: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const sets: string[] = [];
   const vals: unknown[] = [];
   for (const k of CLIENT_FIELDS) {
@@ -82,6 +84,7 @@ export async function updateClientAction(id: string, f: FormData): Promise<Resul
 
 export async function archiveClientAction(id: string, reason: string): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   if (me.role !== 'admin' && me.role !== 'bot')
     return { ok: false, error: 'Only an admin can archive a client.' };
   try {
@@ -98,6 +101,7 @@ export async function archiveClientAction(id: string, reason: string): Promise<R
 
 export async function createContactAction(clientId: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const name = str(f, 'name');
   if (!name) return { ok: false, error: 'A contact needs a name.' };
   try {
@@ -127,6 +131,7 @@ export async function createContactAction(clientId: string, f: FormData): Promis
 
 export async function archiveContactAction(id: string, clientId: string): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     await write(asActor(me), 'Contact archived',
       'update contacts set archived_at = now() where id = $1', [id]);
@@ -141,6 +146,7 @@ export async function archiveContactAction(id: string, clientId: string): Promis
 
 export async function createDealAction(f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const clientId = str(f, 'client_id');
   const title = str(f, 'title');
   const category = str(f, 'category');
@@ -205,6 +211,7 @@ const DEAL_NUM_FIELDS = ['term_months','monthly_value','contract_value'];
 
 export async function updateDealAction(id: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const sets: string[] = [];
   const vals: unknown[] = [];
   const push = (col: string, v: unknown, cast = '') => {
@@ -235,6 +242,7 @@ export async function setHealthAction(
   id: string, health: 'red' | 'amber' | 'green', reason: string,
 ): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   if (!reason?.trim()) return { ok: false, error: 'Health needs a reason.' };
   try {
     await write(asActor(me), `Health set to ${health}: ${reason}`,
@@ -253,6 +261,7 @@ export async function moveStageAction(
   id: string, stage: string, reason?: string, closeReason?: string,
 ): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     await write(asActor(me), reason ?? `Moved to ${stage}`,
       `update deals set stage = $1,
@@ -269,6 +278,7 @@ export async function moveStageAction(
 
 export async function convertPilotAction(id: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const reason = str(f, 'reason');
   if (!reason) return { ok: false, error: 'Converting a pilot needs a reason.' };
   try {
@@ -287,6 +297,7 @@ export async function convertPilotAction(id: string, f: FormData): Promise<Resul
 
 export async function archiveDealAction(id: string, reason: string): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   if (me.role !== 'admin' && me.role !== 'bot')
     return { ok: false, error: 'Only an admin can archive a deal.' };
   try {
@@ -303,6 +314,7 @@ export async function archiveDealAction(id: string, reason: string): Promise<Res
 
 export async function addLineItemAction(dealId: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const description = str(f, 'description');
   if (!description) return { ok: false, error: 'A line item needs a description.' };
   try {
@@ -322,6 +334,7 @@ export async function setDeliveredAction(
   itemId: string, dealId: string, delivered: number,
 ): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     await write(asActor(me), 'Delivered quantity updated',
       'update line_items set delivered_quantity = $1 where id = $2', [delivered, itemId]);
@@ -336,6 +349,7 @@ export async function setDeliveredAction(
 
 export async function createTaskAction(f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const title = str(f, 'title');
   if (!title) return { ok: false, error: 'A task needs a title.' };
   try {
@@ -355,6 +369,7 @@ export async function completeTaskAction(
   id: string, nextStep?: string, nextStepDue?: string,
 ): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     await tx(asActor(me), 'Task completed', async (c) => {
       const { rows } = await c.query<{ deal_id: string | null }>(
@@ -378,6 +393,7 @@ export async function completeTaskAction(
 
 export async function logInteractionAction(f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const summary = str(f, 'summary');
   const clientId = str(f, 'client_id');
   if (!summary || !clientId) return { ok: false, error: 'Client and summary are required.' };
@@ -419,6 +435,7 @@ export async function logInteractionAction(f: FormData): Promise<Result> {
 
 export async function undoActivityAction(activityId: number, field?: string): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   if (me.role !== 'admin') return { ok: false, error: 'Only an admin can undo a change.' };
   try {
     await write(asActor(me), `Undo of activity #${activityId}`,
@@ -498,6 +515,7 @@ export async function searchAction(q: string) {
 /** DL-14: one form, one pilot deal in stage handover with everything filled. */
 export async function createHandoverAction(f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const clientId = str(f, 'client_id');
   const title = str(f, 'title');
   if (!clientId || !title) return { ok: false, error: 'Client and deal title are required.' };
@@ -537,6 +555,7 @@ export async function createHandoverAction(f: FormData): Promise<Result> {
 /** An extended pilot keeps its stage and gets a new end date; there is no Extended stage. */
 export async function extendPilotAction(id: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const endDate = str(f, 'end_date');
   const reason = str(f, 'reason');
   if (!endDate) return { ok: false, error: 'New end date is empty.' };
@@ -557,6 +576,7 @@ export async function extendPilotAction(id: string, f: FormData): Promise<Result
 /** Renewing puts a retention deal back in Active with its new term and dates. */
 export async function renewDealAction(id: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const endDate = str(f, 'end_date');
   const reason = str(f, 'reason');
   if (!endDate) return { ok: false, error: 'New end date is empty.' };

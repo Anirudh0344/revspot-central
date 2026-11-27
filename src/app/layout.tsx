@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import './globals.css';
-import { currentProfile } from '@/lib/auth';
+import { canEdit, currentProfile } from '@/lib/auth';
+import { roleLabel } from '@/lib/format';
 import { signOut } from '@/lib/actions';
 import { CommandBar } from '@/components/command-bar';
 import { Nav } from '@/components/nav';
@@ -40,7 +41,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     {me.name}
                   </span>
                   <span className="hidden sm:inline-flex">
-                    <Badge tone={me.role === 'intern' ? 'neutral' : 'brand'}>{me.role}</Badge>
+                    <Badge tone={canEdit(me) ? 'brand' : 'neutral'} testId="current-role">{roleLabel(me)}</Badge>
                   </span>
                   <Link
                     href="/settings"
@@ -58,6 +59,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
           </div>
         </header>
+        {me && !canEdit(me) && (
+          <div className="border-b border-[var(--line)] bg-[var(--paper-sunk)] px-4 py-1.5 text-center text-[12px] text-[var(--ink-muted)]" data-testid="view-only-banner">
+            View only: you can see everything here but not change it. Ask an admin if something needs updating.
+          </div>
+        )}
         <main className="mx-auto max-w-[1320px] px-4 py-5 sm:px-5 sm:py-7">{children}</main>
         {me && <CommandBar />}
       </body>

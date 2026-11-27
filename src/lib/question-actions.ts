@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireProfile, asActor } from './auth';
+import { requireProfile, asActor, canEdit, VIEW_ONLY_MESSAGE } from './auth';
 import { write, readableError } from './db';
 import { postSlack } from './alerts';
 import { appUrl } from './gmail';
@@ -15,6 +15,7 @@ const str = (f: FormData, k: string): string | null => {
 
 export async function askQuestionAction(f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const dealId = str(f, 'deal_id');
   const body = str(f, 'body');
   if (!dealId) return { ok: false, error: 'Pick a deal.' };
@@ -47,6 +48,7 @@ export async function askQuestionAction(f: FormData): Promise<Result> {
 
 export async function replyQuestionAction(f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const questionId = str(f, 'question_id');
   const body = str(f, 'body');
   if (!questionId || !body) return { ok: false, error: 'Write a reply.' };
@@ -73,6 +75,7 @@ export async function replyQuestionAction(f: FormData): Promise<Result> {
 
 export async function setQuestionStatusAction(questionId: string, status: 'open' | 'resolved'): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     const rows = await write<{ deal_id: string }>(
       asActor(me),
@@ -92,6 +95,7 @@ export async function setQuestionStatusAction(questionId: string, status: 'open'
 /** Marks a deal stuck (who it waits on, and on what), or clears it. */
 export async function setBlockerAction(f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const dealId = str(f, 'deal_id');
   if (!dealId) return { ok: false, error: 'Pick a deal.' };
   const on = str(f, 'blocked_on');

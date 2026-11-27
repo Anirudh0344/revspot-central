@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireProfile, asActor } from './auth';
+import { requireProfile, asActor, canEdit, VIEW_ONLY_MESSAGE } from './auth';
 import { tx, readableError } from './db';
 import { clientDomain } from './email-domains';
 import type { Result } from './actions';
@@ -22,6 +22,7 @@ const fail = (e: unknown): Result => ({ ok: false, error: readableError(e) });
  */
 export async function linkDealContactAction(dealId: string, contactId: string): Promise<Result & { filed?: number }> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   if (!contactId) return { ok: false, error: 'Pick a contact to link.' };
   try {
     const filed = await tx(asActor(me), 'Contact linked to deal', async (c) => {
@@ -62,6 +63,7 @@ export async function linkDealContactAction(dealId: string, contactId: string): 
 
 export async function unlinkDealContactAction(dealId: string, contactId: string): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     await tx(asActor(me), 'Contact unlinked from deal', (c) =>
       c.query(
@@ -78,6 +80,7 @@ export async function unlinkDealContactAction(dealId: string, contactId: string)
 /** Adds an email domain, so Gmail sync picks up this client's mail. */
 export async function addClientDomainAction(clientId: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const raw = String(f.get('domain') ?? '');
   const domain = clientDomain(raw, process.env.ALLOWED_EMAIL_DOMAIN);
   if (!domain) {
@@ -111,6 +114,7 @@ export async function addClientDomainAction(clientId: string, f: FormData): Prom
 
 export async function removeClientDomainAction(clientId: string, domainId: string): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     await tx(asActor(me), 'Email domain removed', (c) =>
       c.query(
@@ -130,6 +134,7 @@ export async function removeClientDomainAction(clientId: string, domainId: strin
  */
 export async function attachEmailToDealAction(interactionId: string, dealId: string): Promise<Result & { filed?: number }> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   if (!dealId) return { ok: false, error: 'Pick a deal.' };
   try {
     const out = await tx(asActor(me), 'Email filed on deal', async (c) => {

@@ -9,6 +9,8 @@ export type Profile = {
   email: string | null;
   role: 'admin' | 'intern' | 'viewer' | 'bot';
   is_active: boolean;
+  /** The one admin who alone manages other admins. */
+  is_super_admin: boolean;
 };
 
 const DEV_COOKIE = 'cc_dev_profile';
@@ -30,7 +32,7 @@ export async function currentProfile(): Promise<Profile | null> {
 
   if (!userId || !/^[0-9a-f-]{36}$/i.test(userId)) return null;
   const { rows } = await pool.query<Profile>(
-    'select id, name, email, role, is_active from profiles where id = $1',
+    'select id, name, email, role, is_active, is_super_admin from profiles where id = $1',
     [userId],
   );
   const p = rows[0];
@@ -52,3 +54,8 @@ export const DEV_PROFILE_COOKIE = DEV_COOKIE;
 /** Picking a profile without a password: only off production, and only until Google is set up. */
 export const devAuthEnabled = () =>
   process.env.NODE_ENV !== 'production' && !googleSignInEnabled();
+
+/** Admins (and the bot) change data; everyone else views. Mirrors is_writer() in the database. */
+export const canEdit = (p: Pick<Profile, 'role'> | null | undefined) => p?.role === 'admin' || p?.role === 'bot';
+
+export const VIEW_ONLY_MESSAGE = 'You can view Revspot Central but not change it. Ask an admin if you need to.';

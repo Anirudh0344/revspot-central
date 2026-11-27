@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireProfile, asActor } from './auth';
+import { requireProfile, asActor, canEdit, VIEW_ONLY_MESSAGE } from './auth';
 import { query, write, readableError } from './db';
 import type { Result } from './actions';
 import type { Step, Trigger } from './playbooks';
@@ -43,6 +43,7 @@ function clean(input: PlaybookInput): { ok: true; value: PlaybookInput } | { ok:
 
 export async function savePlaybookAction(id: string | null, input: PlaybookInput): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   if (me.role !== 'admin') return { ok: false, error: 'Only an admin can change playbooks.' };
   const c = clean(input);
   if (!c.ok) return c;
@@ -66,6 +67,7 @@ export async function savePlaybookAction(id: string | null, input: PlaybookInput
 
 export async function startPlaybookAction(dealId: string, playbookId: string): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   if (!playbookId) return { ok: false, error: 'Pick a playbook.' };
   try {
     const rows = await write<{ id: string }>(asActor(me), 'Playbook started',
@@ -80,6 +82,7 @@ export async function startPlaybookAction(dealId: string, playbookId: string): P
 /** Saves answers; on completion, logs the whole playbook as a note on the deal, as HubSpot does. */
 export async function saveRunAction(runId: string, answers: Record<string, string>, complete: boolean): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const cleanAnswers = Object.fromEntries(
     Object.entries(answers).map(([k, v]) => [k, String(v ?? '').trim()]).filter(([, v]) => v),
   );
@@ -120,6 +123,7 @@ export async function saveRunAction(runId: string, answers: Record<string, strin
 
 export async function dismissRunAction(runId: string): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     const rows = await write<{ deal_id: string }>(asActor(me), 'Playbook dismissed',
       `update playbook_runs set status = 'dismissed' where id = $1 and status = 'in_progress' returning deal_id`, [runId]);

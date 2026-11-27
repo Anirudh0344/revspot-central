@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireProfile, asActor } from './auth';
+import { requireProfile, asActor, canEdit, VIEW_ONLY_MESSAGE } from './auth';
 import { query, write, readableError } from './db';
 import { disconnectMailbox, sendMail, sendingAccount } from './gmail';
 import type { Result } from './actions';
@@ -45,6 +45,7 @@ async function billRefs(id: string) {
 
 export async function createBillingAccountAction(clientId: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const name = str(f, 'name');
   if (!name) return { ok: false, error: 'Who is billed? Give the bill-to party a name.' };
   const to = emails(f, 'to_emails');
@@ -71,6 +72,7 @@ export async function createBillingAccountAction(clientId: string, f: FormData):
 
 export async function setDealBillingAccountAction(dealId: string, accountId: string | null): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     await write(asActor(me), 'Bill-to party set', 'update deals set billing_account_id = $1 where id = $2', [accountId, dealId]);
     refresh(dealId);
@@ -85,6 +87,7 @@ export async function setDealBillingAccountAction(dealId: string, accountId: str
 /** A new bill starts as a PI. */
 export async function createBillAction(dealId: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const amount = num(f, 'amount');
   if (!amount || amount <= 0) return { ok: false, error: 'Enter the amount before GST.' };
   const gstRate = num(f, 'gst_rate') ?? 18;
@@ -126,6 +129,7 @@ export async function createBillAction(dealId: string, f: FormData): Promise<Res
 
 export async function markPiSentAction(id: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     await write(asActor(me), 'PI sent to the client',
       `update invoices set pi_sent_on = coalesce($2::date, today_ist()),
@@ -141,6 +145,7 @@ export async function markPiSentAction(id: string, f: FormData): Promise<Result>
 
 export async function recordPoAction(id: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const po = str(f, 'po_number');
   if (!po) return { ok: false, error: 'Enter the PO/RO number from the client.' };
   try {
@@ -161,6 +166,7 @@ export async function recordPoAction(id: string, f: FormData): Promise<Result> {
 
 export async function recordPaymentAction(id: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const amount = num(f, 'amount');
   const reference = str(f, 'reference');
   if (!amount || amount <= 0) return { ok: false, error: 'Enter the amount received.' };
@@ -186,6 +192,7 @@ export async function recordPaymentAction(id: string, f: FormData): Promise<Resu
 
 export async function issueTiAction(id: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const ti = str(f, 'ti_number');
   if (!ti) return { ok: false, error: 'Enter the tax invoice number from Zoho.' };
   try {
@@ -206,6 +213,7 @@ export async function setBillStatusAction(
   reason: string,
 ): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     await write(asActor(me), reason, 'update invoices set status = $2 where id = $1', [id, status]);
     if (status === 'cancelled') {
@@ -224,6 +232,7 @@ export async function setBillStatusAction(
 
 export async function queueRemindersAction(): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     const rows = await write<{ n: number }>(asActor(me), 'Reminder queue refreshed',
       'select queue_billing_reminders() as n');
@@ -236,6 +245,7 @@ export async function queueRemindersAction(): Promise<Result> {
 
 export async function updateReminderAction(id: string, f: FormData): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   const subject = str(f, 'subject');
   const body = str(f, 'body');
   if (!subject || !body) return { ok: false, error: 'A reminder needs a subject and a message.' };
@@ -253,6 +263,7 @@ export async function updateReminderAction(id: string, f: FormData): Promise<Res
 
 export async function skipReminderAction(id: string): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     await write(asActor(me), 'Reminder skipped',
       `update billing_reminders set status = 'skipped' where id = $1 and status in ('queued','failed')`, [id]);
@@ -266,6 +277,7 @@ export async function skipReminderAction(id: string): Promise<Result> {
 /** Sends one queued reminder from the finance mailbox and logs it on the deal. */
 export async function sendReminderAction(id: string): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   if (me.role === 'viewer') return { ok: false, error: 'Viewers cannot send billing email.' };
   const rows = await query<{
     status: string; to_emails: string[]; cc_emails: string[]; subject: string; body: string;
@@ -315,6 +327,7 @@ export async function sendReminderAction(id: string): Promise<Result> {
 
 export async function disconnectMailboxAction(id: string): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   if (me.role !== 'admin') return { ok: false, error: 'Only an admin can disconnect a mailbox.' };
   try {
     await disconnectMailbox(id);
@@ -329,6 +342,7 @@ export async function disconnectMailboxAction(id: string): Promise<Result> {
 
 export async function syncMailNowAction(): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   if (me.role === 'viewer') return { ok: false, error: 'Viewers cannot run a sync.' };
   try {
     const out = await runMailSync();
@@ -344,6 +358,7 @@ export async function syncMailNowAction(): Promise<Result> {
 
 export async function runDailyNowAction(): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   if (me.role !== 'admin') return { ok: false, error: 'Only an admin can run the daily jobs by hand.' };
   try {
     await runDaily();
@@ -357,6 +372,7 @@ export async function runDailyNowAction(): Promise<Result> {
 
 export async function markReplySeenAction(id: string): Promise<Result> {
   const me = await requireProfile();
+  if (!canEdit(me)) return { ok: false, error: VIEW_ONLY_MESSAGE };
   try {
     await write(asActor(me), 'Reply seen', 'update billing_reminders set reply_seen_at = now() where id = $1', [id]);
     revalidatePath('/finance');
