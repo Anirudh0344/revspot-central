@@ -16,11 +16,17 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if;
 end $$;
 
--- On a hosted Postgres the connecting user is not a superuser, so it must be a
--- member of the roles the app switches into (`set local role authenticated`).
+-- On a hosted Postgres the connecting user is not a superuser, so it must be
+-- allowed to switch into the roles the app uses (`set local role authenticated`).
+-- Check SET, not MEMBER: on PostgreSQL 16+ the user that created a role is its
+-- admin and counts as a member, but may not SET ROLE to it (Neon, PG 18).
 do $$ begin
   if not (select rolsuper from pg_roles where rolname = current_user)
-     and not (pg_has_role(current_user, 'anon', 'MEMBER') and pg_has_role(current_user, 'authenticated', 'MEMBER')) then
-    execute format('grant anon, authenticated to %I', current_user);
+     and not (pg_has_role(current_user, 'anon', 'SET') and pg_has_role(current_user, 'authenticated', 'SET')) then
+    if current_setting('server_version_num')::int >= 160000 then
+      execute format('grant anon, authenticated to %I with set true', current_user);
+    else
+      execute format('grant anon, authenticated to %I', current_user);
+    end if;
   end if;
 end $$;

@@ -18,6 +18,8 @@ One OAuth client covers sign-in, the finance mailbox and personal mailboxes.
 
 ## 2. Database
 
+Production runs on **Neon**, project `revspot-central`, region AWS Singapore
+(`ap-southeast-1`; Neon has no Mumbai region). Use the **pooled** connection string.
 Point `PROD_DATABASE_URL` at the production Postgres. For a first deploy into an
 empty database, from this folder:
 
