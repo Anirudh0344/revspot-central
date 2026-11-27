@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { appUrl, authUrl } from '@/lib/gmail';
 import { googleSignInEnabled } from '@/lib/session';
+import { withBase } from '@/lib/base-path';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,9 @@ export async function GET() {
     httpOnly: true,
     sameSite: 'lax',
     secure: appUrl().startsWith('https://'),
-    path: '/api/google',
+    // Scoped to the callback's real URL, prefix included (/p/{slug}/api/google on Marketplace),
+    // or the browser never sends it back.
+    path: withBase('/api/google'),
     maxAge: 600,
   });
   return Response.redirect(authUrl('signin', state));

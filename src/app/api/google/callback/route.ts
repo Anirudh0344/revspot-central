@@ -4,6 +4,7 @@ import { currentProfile } from '@/lib/auth';
 import { appUrl, connectMailbox, signInWithCode, type Purpose } from '@/lib/gmail';
 import { query } from '@/lib/db';
 import { SESSION_COOKIE, SESSION_DAYS, signSession } from '@/lib/session';
+import { withBase } from '@/lib/base-path';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,11 +15,13 @@ const to = (path: string, q: Record<string, string> = {}) =>
 export async function GET(req: NextRequest) {
   const jar = await cookies();
   const saved = jar.get('cc_google_oauth')?.value ?? '';
-  jar.delete({ name: 'cc_google_oauth', path: '/api/google' });
+  jar.delete({ name: 'cc_google_oauth', path: withBase('/api/google') });
 
   const [state, purpose] = saved.split('.') as [string, Purpose | undefined];
   const p = req.nextUrl.searchParams;
-  const back = purpose === 'signin' ? '/login' : '/settings';
+  // Without the state cookie we can't tell sign-in from mailbox connect; the login
+  // page is the one place a signed-out person can still read the error.
+  const back = purpose === 'read' || purpose === 'send' ? '/settings' : '/login';
 
   if (p.get('error')) return to(back, { error: `Google sign-in was not completed (${p.get('error')}).` });
   const code = p.get('code');

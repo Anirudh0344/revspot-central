@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { currentProfile } from '@/lib/auth';
 import { appUrl, authUrl, setupGaps, type Purpose } from '@/lib/gmail';
+import { withBase } from '@/lib/base-path';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
     httpOnly: true,
     sameSite: 'lax',
     secure: appUrl().startsWith('https://'),
-    path: '/api/google',
+    path: withBase('/api/google'),
     maxAge: 600,
   });
   const hint = purpose === 'send' ? `finance@${process.env.ALLOWED_EMAIL_DOMAIN ?? 'revspot.ai'}` : (me.email ?? undefined);
